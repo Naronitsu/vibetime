@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=03654cf4">
+<link rel="stylesheet" href="style.css?v=878b34af">
 <script src="holidays.js?v=270cf135"></script>
 <script src="app.js?v=84b31526"></script>
 <script src="sky.js?v=5f491f8d"></script>
+<script src="trend.js?v=8f22d2ae"></script>
 </head>
 <body>
 <div id="nav"></div>
@@ -53,6 +54,8 @@
 
   <div class="stats" id="stats"></div>
 
+  <div id="trendMain"></div>
+
   <div class="leaves" id="leaves"></div>
 
   <div class="grid2">
@@ -86,7 +89,7 @@
     </div>
   </div>
   </div>
-  <aside class="rail" id="rail" aria-label="Your star chart for this quarter"></aside>
+  <aside class="rail" id="rail" aria-label="Balance trajectory for this quarter"></aside>
   </div>
 </main>
 
@@ -136,14 +139,14 @@ function placeHiker(p) {
   document.getElementById('rainin').innerHTML = r;
 })();
 
-// this quarter's three months as constellations, shown beside the page on wide screens
-function renderRail() {
-  const now = new Date(), q0 = Math.floor(now.getMonth() / 3) * 3;
-  let html = `<div class="railhead"><h2>Your sky</h2><a href="sky.html">Full year &rarr;</a></div>`;
-  for (let m = q0; m < q0 + 3; m++) html += skyCardHTML(now.getFullYear(), m, m - q0, m === now.getMonth()).html;
-  $('rail').innerHTML = html;
+// balance trajectory: in the right-hand panel on wide screens, in the main column otherwise
+function renderTrend() {
+  for (const [el, uid] of [[$('rail'), 'a'], [$('trendMain'), 'b']]) {
+    const t = trendHTML(uid);
+    el.innerHTML = t.html;
+    attachTrendHover(el, t.c);
+  }
 }
-attachSkyTips($('rail'));
 
 function weekCard() {
   const g = weekGroup(mondayOf(new Date()), 6, 6, 208, 84);
@@ -179,7 +182,7 @@ function renderStats() {
   $('lblEnd').textContent = s.qEnd.toLocaleDateString('en', { day: 'numeric', month: 'short' });
   placeHiker(Math.max(0, Math.min(1, (s.today - qs) / (s.qEnd - qs))));
 
-  renderRail();
+  renderTrend();
   $('stats').innerHTML = `
     <div class="panel stat">
       <div class="k">Balance</div>
