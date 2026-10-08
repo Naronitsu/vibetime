@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendar · Flex time</title>
+<link rel="stylesheet" href="style.css">
+<script src="holidays.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<div id="nav"></div>
+<main>
+  <div class="monthbar">
+    <h1 id="monthTitle"></h1>
+    <button class="btn" id="prev" aria-label="Previous month">&larr;</button>
+    <button class="btn" id="today">Today</button>
+    <button class="btn" id="next" aria-label="Next month">&rarr;</button>
+  </div>
+  <div class="msum" id="msum"></div>
+  <div class="cal" id="cal"></div>
+  <div class="legend">
+    <span><i class="wrk"></i>Worked</span>
+    <span><i class="pt"></i>PTO</span>
+    <span><i class="sk"></i>Sick leave</span>
+    <span><i class="tod"></i>Today</span>
+    <span><i class="off"></i>Day off (locked)</span>
+    <span><i class="hol"></i>Public holiday</span>
+    <span><i class="mis"></i>Nothing logged</span>
+  </div>
+  <p class="lede mt">Click any day to log time worked, PTO and sick leave. The amounts don't have to add up to a full day.</p>
+</main>
+
+<dialog id="dlg">
+  <form class="dbody" id="dform" autocomplete="off">
+    <h2 id="dtitle"></h2>
+    <p class="dsub" id="dsub"></p>
+    <div class="dfield w"><span class="nm"><i></i>Worked</span><input class="inp" id="fw" placeholder="e.g. 7h 45m"><button type="button" class="fill" data-fill="fw">Fill rest</button></div>
+    <div class="dfield pto"><span class="nm"><i></i>PTO</span><input class="inp" id="fp" placeholder="0h"><button type="button" class="fill" data-fill="fp">Fill rest</button></div>
+    <div class="dfield sick"><span class="nm"><i></i>Sick leave</span><input class="inp" id="fs" placeholder="0h"><button type="button" class="fill" data-fill="fs">Fill rest</button></div>
+    <div class="dsum" id="dsum"></div>
+    <div class="dact">
+      <button class="btn primary" type="submit">Save</button>
+      <button class="btn" type="button" id="dcancel">Cancel</button>
+      <span class="sp"></span>
+      <button class="btn danger" type="button" id="dclear">Clear day</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+renderNav('calendar.html');
+const $ = id => document.getElementById(id);
+let view = new Date(); view.setDate(1);
+
+function renderSummary() {
+  const y = view.getFullYear(), m = view.getMonth();
+  const md = monthDelta(y, m), end = balanceThrough(monthEnd(view)), { limitMax, limitMin } = state.settings;
+  const ok = end <= limitMax + 1e-9 && end >= -limitMin - 1e-9;
+  $('msum').innerHTML = `
+    <div>This month<b class="${cls(md)}">${fh(md)}</b></div>
+    <div>Balance at month end<b class="${cls(end)}">${fh(end)}</b></div>
+    <div>Monthly limit<b class="${ok ? 'pos' : 'neg'}">${ok ? 'Within' : 'Outside'}</b></div>`;
+}
+
+const PARTS = [['w', 'Worked', 'w'], ['pto', 'PTO', 'p'], ['sick', 'Sick', 's']];
+
+function renderCal(dir = 0) {
+  const y = view.getFullYear(), m = view.getMonth();
+  const title = $('monthTitle');
+  title.textContent = view.toLocaleString('en', { month: 'long', year: 'numeric' });
+  if (dir) title.animate([{ opacity: 0, transform: `translateX(${dir * 14}px)` }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' });
+  const todayS = fmt(new Date());
+  const blank = '<div class="day blank"></div>';
+  let html = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => `<div class="dow">${d}</div>`).join('') + '<div class="dow wk">Week</div>';
+  const last = new Date(y, m+1, 0).getDate();
+  let col = (new Date(y, m, 1).getDay() + 6) % 7, idx = col, wkT = 0, wkD = 0, wkAny = false;
+  html += blank.repeat(col);
+  for (let n = 1; n <= last; n++, idx++) {
+    const d = new Date(y, m, n), k = fmt(d), e = state.days[k], wk = isWorkday(d), hol = holidayName(d), exp = expectedFor(d);
+    const inRange = k >= state.settings.start;
+    const missing = wk && !hol && !e && k < todayS && inRange;
+    const locked = !wk && !e;
+    const tot = e ? creditedFor(e, d) : 0;
+    const dl = e && inRange ? tot - exp : null;
+    const dtxt = dl == null ? '' : Math.abs(dl) < 1e-9 ? (hol ? 'Holiday' : 'On target') : fh(dl);
+    let rows = e ? PARTS.filter(([key]) => (e[key] || 0) > 0) : [];
+    if (e && !rows.length) rows = [PARTS[0]];
+    const scale = Math.max(exp, tot) || 1;
+    const meter = e ? `<div class="meter stack">${PARTS.map(([key, , c]) => (e[key] || 0) > 0 && (key === 'w' || exp > 0) ? `<i class="${c}" style="width:${e[key] / scale * 100}%"></i>` : '').join('')}</div>` : '';
+    if (e && inRange) { wkT += tot; wkD += dl; wkAny = true; }
+    const classes = ['day', !wk && 'off', k === todayS && 'today', hol && 'holiday'].filter(Boolean).join(' ');
+    html += `<button type="button" class="${classes}" data-k="${k}" style="--i:${idx}" ${locked ? 'disabled' : ''} aria-label="${d.toDateString()}">
+      <span class="top"><span class="num">${n}</span>${missing ? '<i class="miss" title="Nothing logged"></i>' : ''}</span>
+      ${hol ? `<span class="hn" title="${hol}">${hol}</span>` : (locked ? '<span class="hn off">Day off</span>' : '')}
+      <span class="rows">${rows.length ? rows.map(([key, name]) => `<span class="r ${key}"><span class="lbl">${name}</span><b>${fh(e[key] || 0, false)}</b></span>`).join('') : (locked ? '' : '<span class="addhint">+ Add time</span>')}</span>
+      <span class="foot">${meter}${dtxt ? `<span class="d ${cls(dl || 0)}">${dtxt}</span>` : ''}</span>
+    </button>`;
+    if (++col === 7 || n === last) {
+      html += blank.repeat(7 - col);
+      html += `<div class="wkcell" style="--i:${idx}">${wkAny ? `<b>${fh(wkT, false)}</b><span class="${cls(wkD)}">${Math.abs(wkD) < 1e-9 ? 'on target' : fh(wkD)}</span>` : ''}</div>`;
+      col = 0; wkT = 0; wkD = 0; wkAny = false;
+    }
+  }
+  const cal = $('cal');
+  cal.style.setProperty('--dx', `${dir * 22}px`);
+  cal.classList.toggle('enter', !!dir || dir === 0 && renderCal.first !== false);
+  renderCal.first = false;
+  cal.innerHTML = html;
+}
+const render = dir => { renderSummary(); renderCal(dir); };
+
+// ---- day editor
+const dlg = $('dlg'), FIELD = { w: 'fw', pto: 'fp', sick: 'fs' };
+let editing = null;
+
+const readFields = () => Object.fromEntries(Object.entries(FIELD).map(([key, id]) => [key, parseHours($(id).value)]));
+function updateEditor() {
+  const d = parseDate(editing), exp = expectedFor(d), v = readFields();
+  for (const [key, id] of Object.entries(FIELD)) $(id).classList.toggle('invalid', Number.isNaN(v[key]));
+  const num = x => (x == null || Number.isNaN(x)) ? 0 : x;
+  const tot = num(v.w) + (exp > 0 ? num(v.pto) + num(v.sick) : 0), dl = tot - exp;
+  const any = Object.values(v).some(x => x != null);
+  $('dsum').innerHTML = !any ? '<span style="color:var(--muted)">Nothing logged for this day.</span>' :
+    `Total <b>${fh(tot, false)}</b>${exp ? ` of ${fh(exp, false)} expected` : ''}: <b class="${cls(dl)}">${Math.abs(dl) < 1e-9 ? 'on target' : fh(dl)}</b>`;
+  document.querySelectorAll('.fill').forEach(b => {
+    const others = Object.entries(FIELD).filter(([, id]) => id !== b.dataset.fill).reduce((s, [key]) => s + num(v[key]), 0);
+    b.disabled = exp === 0 || exp - others <= 0;
+  });
+}
+function openDay(k) {
+  editing = k;
+  const d = parseDate(k), e = state.days[k] || {}, hol = holidayName(d), exp = expectedFor(d);
+  $('dtitle').textContent = d.toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('dsub').textContent = hol ? `Public holiday: ${hol}. No hours expected.` : exp ? `Expected: ${fh(exp, false)}` : 'Non-working day. Hours logged count as extra.';
+  for (const [key, id] of Object.entries(FIELD)) $(id).value = e[key] != null ? toInput(e[key]) : '';
+  for (const id of ['fp', 'fs']) { $(id).disabled = exp === 0; $(id).closest('.dfield').classList.toggle('disabled', exp === 0); }
+  updateEditor();
+  dlg.showModal();
+  $('fw').focus(); $('fw').select();
+}
+function closeEditor() {
+  const k = editing; dlg.close(); editing = null;
+  renderSummary(); renderCal(null);
+  const t = $('cal').querySelector(`[data-k="${k}"]`); if (t) t.focus();
+}
+$('cal').addEventListener('click', ev => { const t = ev.target.closest('button.day'); if (t && !t.disabled) openDay(t.dataset.k); });
+dlg.addEventListener('input', updateEditor);
+dlg.addEventListener('click', ev => { if (ev.target === dlg) dlg.close(); });
+$('dcancel').onclick = () => dlg.close();
+dlg.querySelectorAll('.fill').forEach(b => b.onclick = () => {
+  const exp = expectedFor(parseDate(editing)), v = readFields();
+  const others = Object.entries(FIELD).filter(([, id]) => id !== b.dataset.fill).reduce((s, [key]) => s + (v[key] || 0), 0);
+  $(b.dataset.fill).value = toInput(Math.max(0, exp - others));
+  updateEditor(); $(b.dataset.fill).focus();
+});
+$('dclear').onclick = () => { setEntry(editing, {}); closeEditor(); };
+$('dform').onsubmit = ev => {
+  ev.preventDefault();
+  const v = readFields();
+  if (Object.values(v).some(Number.isNaN)) return;
+  setEntry(editing, v); closeEditor();
+};
+
+$('prev').onclick = () => { view.setMonth(view.getMonth()-1); render(-1); };
+$('next').onclick = () => { view.setMonth(view.getMonth()+1); render(1); };
+$('today').onclick = () => { view = new Date(); view.setDate(1); render(1); };
+render();
+</script>
+</body>
+</html>

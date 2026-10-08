@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Today · Flex time</title>
+<link rel="stylesheet" href="style.css">
+<script src="holidays.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<div id="nav"></div>
+<main>
+  <h1 id="title">Today</h1>
+  <p class="lede" id="lede"></p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="leaves" id="leaves"></div>
+
+  <div class="grid2">
+    <section class="panel">
+      <h2>Log time</h2>
+      <label class="f" for="date">Day</label>
+      <input class="inp" type="date" id="date">
+      <div class="lab mt"><label class="f" for="hours">Worked</label><button type="button" class="fill" data-fill="hours">Fill rest</button></div>
+      <input class="inp big" id="hours" placeholder="e.g. 7h 45m" autocomplete="off">
+      <div class="two mt">
+        <div><div class="lab"><label class="f" for="ptoH">PTO</label><button type="button" class="fill" data-fill="ptoH">Fill rest</button></div><input class="inp" id="ptoH" placeholder="0h" autocomplete="off"></div>
+        <div><div class="lab"><label class="f" for="sickH">Sick leave</label><button type="button" class="fill" data-fill="sickH">Fill rest</button></div><input class="inp" id="sickH" placeholder="0h" autocomplete="off"></div>
+      </div>
+      <div class="preview" id="preview"></div>
+      <div class="row mt">
+        <button class="btn primary" id="save">Save</button>
+        <button class="btn danger" id="clear">Clear</button>
+      </div>
+    </section>
+
+    <div>
+      <section class="panel">
+        <h2>Not logged yet</h2>
+        <ul class="list" id="missing"></ul>
+      </section>
+      <section class="panel mt" id="holPanel" hidden>
+        <h2>Upcoming public holidays</h2>
+        <ul class="list" id="holidays"></ul>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+renderNav('index.html');
+
+const $ = id => document.getElementById(id);
+const dateEl = $('date'), hoursEl = $('hours'), preview = $('preview');
+dateEl.value = fmt(new Date());
+
+function renderStats() {
+  const s = stats(), { target, limitMax, limitMin, quarterTarget } = state.settings;
+  $('title').textContent = longDate(s.today);
+  $('lede').textContent = 'Log your day, check where you stand.';
+
+  let q;
+  if (Math.abs(s.gap) < 0.01) q = '<span class="badge ok">At target</span>';
+  else if (s.remaining === 0) q = '<span class="badge bad">Quarter over, target missed</span>';
+  else if (s.needAvg > 12 || s.needAvg < 0) q = '<span class="badge bad">Hard to recover</span>';
+  else q = Math.abs(s.needAvg - target) > 1.5 ? '<span class="badge warn">Needs adjusting</span>' : '<span class="badge ok">Recoverable</span>';
+
+  $('stats').innerHTML = `
+    <div class="panel stat">
+      <div class="k">Balance</div>
+      <div class="v ${cls(s.bal)}">${fh(s.bal)}</div>
+      <div class="s">${s.today.toLocaleString('en',{month:'long'})} so far: <b class="tab">${fh(s.mDelta)}</b></div>
+    </div>
+    <div class="panel stat">
+      <div class="k">Monthly limit</div>
+      <div class="scale">
+        <div class="fill" style="left:${Math.min(s.zero,s.pct)}%;width:${Math.abs(s.pct-s.zero)}%;transform-origin:${s.pct < s.zero ? 'right' : 'left'}"></div>
+        <div class="zero" style="left:${s.zero}%"></div>
+        <div class="dot" style="left:${s.pct}%;--z:${s.zero}%"></div>
+      </div>
+      <div class="ends tab"><span>−${limitMin}h</span><span>+${limitMax}h</span></div>
+      <div style="margin-top:8px"><span class="badge ${s.within ? 'ok' : 'bad'}">${s.within ? 'Within limit' : 'Outside limit'}</span></div>
+    </div>
+    <div class="panel stat">
+      <div class="k">Needed per day until ${s.qEnd.toLocaleDateString('en',{day:'numeric',month:'short'})}</div>
+      <div class="v">${s.needAvg == null ? '—' : fh(s.needAvg, false) + ' <small>/ day</small>'}</div>
+      <div class="s">${q} ${fd(s.remaining)} workday${s.remaining===1?'':'s'} left${Math.abs(s.gap) >= 0.01 ? `; ${s.gap > 0 ? 'take back' : 'make up'} ${fh(Math.abs(s.gap), false)} to end at ${fh(quarterTarget)}` : ''}.</div>
+    </div>`;
+}
+
+function renderMissing() {
+  const list = missingDays();
+  $('missing').innerHTML = list.length ? list.map(d => `
+    <li data-k="${fmt(d)}">
+      <span class="d">${d.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})}</span>
+      <button class="btn sm" data-a="full">Log ${fh(state.settings.target, false)}</button>
+      <button class="btn sm" data-a="pto">PTO</button>
+      <button class="btn sm" data-a="sick">Sick</button>
+      <button class="btn sm" data-a="edit">Edit</button>
+    </li>`).join('') : '<li class="empty">All caught up.</li>';
+}
+
+const FIELD = { w: 'hours', pto: 'ptoH', sick: 'sickH' };
+const fieldIds = Object.values(FIELD);
+const readFields = () => Object.fromEntries(Object.entries(FIELD).map(([key, id]) => [key, parseHours($(id).value)]));
+const num = x => (x == null || Number.isNaN(x)) ? 0 : x;
+
+function loadDay() {
+  const e = state.days[dateEl.value] || {};
+  for (const [key, id] of Object.entries(FIELD)) { $(id).value = e[key] != null ? toInput(e[key]) : ''; $(id).classList.remove('invalid'); }
+  updatePreview();
+}
+function updatePreview() {
+  const k = dateEl.value; if (!k) { preview.textContent = ''; return; }
+  const d = parseDate(k), e = state.days[k], exp = expectedFor(d), hol = holidayName(d);
+  const locked = !isWorkday(d) && !e;
+  for (const id of fieldIds) $(id).disabled = locked;
+  $('ptoH').disabled = $('sickH').disabled = locked || exp === 0;
+  $('save').disabled = locked;
+  const v = readFields();
+  for (const [key, id] of Object.entries(FIELD)) $(id).classList.toggle('invalid', Number.isNaN(v[key]));
+  document.querySelectorAll('.fill').forEach(b => {
+    const others = Object.entries(FIELD).filter(([, id]) => id !== b.dataset.fill).reduce((s, [key]) => s + num(v[key]), 0);
+    b.disabled = locked || exp === 0 || exp - others <= 0;
+  });
+  if (locked) { preview.innerHTML = 'Not a working day. Change your working days in Settings.'; return; }
+  if (Object.values(v).some(Number.isNaN)) { preview.innerHTML = '<span class="neg">Try 7h 45m, 7:45 or 7.75</span>'; return; }
+  const any = Object.values(v).some(x => x != null);
+  if (!any) { preview.textContent = hol ? `Public holiday: ${hol}. No hours expected.` : e ? '' : `Expected: ${fh(exp, false)}.`; return; }
+  const tot = num(v.w) + (exp > 0 ? num(v.pto) + num(v.sick) : 0), dl = tot - exp;
+  preview.innerHTML = `Total <b>${fh(tot, false)}</b>${exp ? ` of ${fh(exp, false)} expected` : ''}: <b class="${cls(dl)}">${Math.abs(dl) < 1e-9 ? 'on target' : fh(dl)}</b>`;
+}
+function renderLeaves() {
+  const y = new Date().getFullYear(), L = leaveStats(y);
+  $('leaves').innerHTML = [['pto', 'PTO'], ['sick', 'Sick leave']].map(([t, name]) => {
+    const x = L[t], set = x.total > 0;
+    return `<div class="panel stat ${t}">
+      <div class="k">${name} · ${y}</div>
+      <div class="v ${x.remaining < 0 ? 'neg' : ''}">${set ? fd(x.remaining) : fd(x.booked)} <small>${set ? 'days left' : 'days booked'}</small></div>
+      <div class="meter big"><i class="${x.remaining < 0 ? 'neg' : ''}" style="width:${set ? Math.min(100, x.booked / x.total * 100) : 0}%"></i></div>
+      <div class="split tab"><span><b>${fd(x.total)}</b>total</span><span><b>${fd(x.booked)}</b>booked</span><span><b>${fd(x.remaining)}</b>remaining</span></div>
+      <div class="s">${fd(x.taken)} taken, ${fd(x.upcoming)} upcoming${set ? '' : ' · <a href="settings.html">set your allowance</a>'}</div>
+    </div>`;
+  }).join('');
+}
+function renderHolidays() {
+  const up = state.settings.country ? upcomingHolidays(4) : [];
+  $('holPanel').hidden = !up.length;
+  $('holidays').innerHTML = up.map(h => `<li><span class="d">${h.name}</span><span class="tab" style="color:var(--muted)">${h.date.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})}</span></li>`).join('');
+}
+const refresh = () => { renderStats(); renderLeaves(); renderMissing(); renderHolidays(); loadDay(); };
+const flash = msg => { preview.innerHTML = `<b class="pos">${msg}</b>`; };
+
+dateEl.onchange = loadDay;
+for (const id of fieldIds) { $(id).oninput = updatePreview; $(id).onkeydown = e => { if (e.key === 'Enter') $('save').click(); }; }
+document.querySelectorAll('.fill').forEach(b => b.onclick = () => {
+  const exp = expectedFor(parseDate(dateEl.value)), v = readFields();
+  const others = Object.entries(FIELD).filter(([, id]) => id !== b.dataset.fill).reduce((s, [key]) => s + num(v[key]), 0);
+  $(b.dataset.fill).value = toInput(Math.max(0, exp - others));
+  updatePreview();
+});
+$('save').onclick = () => {
+  const v = readFields();
+  if (Object.values(v).some(Number.isNaN)) return;
+  setEntry(dateEl.value, v);
+  renderStats(); renderLeaves(); renderMissing(); flash('Saved');
+};
+$('clear').onclick = () => { setEntry(dateEl.value, {}); refresh(); flash('Cleared'); };
+
+$('missing').onclick = ev => {
+  const b = ev.target.closest('button[data-a]'); if (!b) return;
+  const k = b.closest('li').dataset.k;
+  const T = state.settings.target;
+  if (b.dataset.a === 'full') { setEntry(k, { w: T }); refresh(); }
+  else if (b.dataset.a === 'pto') { setEntry(k, { pto: T }); refresh(); }
+  else if (b.dataset.a === 'sick') { setEntry(k, { sick: T }); refresh(); }
+  else { dateEl.value = k; loadDay(); hoursEl.focus(); }
+};
+
+refresh();
+hoursEl.focus({ preventScroll: true });
+</script>
+</body>
+</html>
