@@ -12,24 +12,101 @@ function defaults() {
     settings: { target: 8, workDays: [1, 2, 3, 4, 5], country: '', ptoTotal: 0, sickTotal: 0, limitMax: 4, limitMin: 4, quarterTarget: 0, theme: 'dark',
                 start: fmt(new Date(now.getFullYear(), now.getMonth(), 1)), opening: 0 },
     days: {},
+    version: SCHEMA,
   };
 }
-let state;
-try { state = JSON.parse(localStorage.getItem(KEY)) || defaults(); } catch { state = defaults(); }
-state.settings = { ...defaults().settings, ...state.settings };
-if (!Array.isArray(state.settings.workDays)) state.settings.workDays = [1, 2, 3, 4, 5];
-if (state.settings.limit != null) { state.settings.limitMax = state.settings.limitMin = state.settings.limit; delete state.settings.limit; }
-// Allowances used to be stored in days; they are hours now. Convert old data once, using the daily target.
-function migrateSettings() {
-  const st = state.settings;
-  if (st.allowanceUnit === 'h') return;
-  const T = Number(st.target) || 8;
-  st.ptoTotal = (Number(st.ptoTotal) || 0) * T;
-  st.sickTotal = (Number(st.sickTotal) || 0) * T;
-  st.allowanceUnit = 'h';
+
+// ---------------------------------------------------------------------------------------------
+// Data format. Everything saved in the browser AND everything exported/imported goes through
+// migrateState(), so old data and old backup files keep working after updates.
+//
+//   { version, settings: {...}, days: { 'YYYY-MM-DD': { w, pto, sick } } }     (hours, all optional)
+//
+// To change the format later: bump SCHEMA and add MIGRATIONS[<old version>] that returns the data
+// in the next version's shape. Never edit an existing migration. New settings only need a default
+// in defaults() (and a rule in SETTING_RULES to validate them).
+// ---------------------------------------------------------------------------------------------
+const SCHEMA = 2;
+const nonNeg = v => Number.isFinite(v) && v >= 0;
+const SETTING_RULES = {
+  target: v => Number.isFinite(v) && v > 0 && v <= 24,
+  limitMax: nonNeg, limitMin: nonNeg, ptoTotal: nonNeg, sickTotal: nonNeg,
+  quarterTarget: Number.isFinite, opening: Number.isFinite,
+  start: v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v),
+  workDays: v => Array.isArray(v) && v.every(n => Number.isInteger(n) && n >= 0 && n <= 6),
+  country: v => typeof v === 'string',
+  theme: v => v === 'dark' || v === 'light',
+};
+const MIGRATIONS = {
+  // 1 -> 2: one limit became max/min, allowances moved from days to hours, days became { w, pto, sick }.
+  1(d) {
+    const st = d.settings;
+    if (st.limit != null) { st.limitMax = st.limitMin = st.limit; delete st.limit; }
+    const T = Number(st.target) > 0 ? Number(st.target) : 8;
+    if (st.allowanceUnit !== 'h') { st.ptoTotal = (Number(st.ptoTotal) || 0) * T; st.sickTotal = (Number(st.sickTotal) || 0) * T; }
+    delete st.allowanceUnit;
+    for (const k in d.days) {
+      const e = d.days[k];
+      if (!e || typeof e !== 'object' || 'w' in e || 'pto' in e || 'sick' in e || !('h' in e || 'leave' in e)) continue;
+      const n = {};
+      if (!e.leave) n.w = e.h || 0;
+      else { if (e.h) n.w = e.h; n[e.type || 'pto'] = e.lh != null ? e.lh : T; }
+      d.days[k] = n;
+    }
+    return d;
+  },
+};
+// Turn any saved/imported data into the current format. Throws an Error with a readable message if
+// it clearly isn't VibeTime data; otherwise repairs what it can and reports the rest in `warnings`.
+function migrateState(raw) {
+  const isObj = x => x && typeof x === 'object' && !Array.isArray(x);
+  if (!isObj(raw) || (raw.settings == null && raw.days == null)) throw new Error('This file is not a VibeTime backup.');
+  if ((raw.settings != null && !isObj(raw.settings)) || (raw.days != null && !isObj(raw.days))) throw new Error('This backup is damaged (settings or days are not readable).');
+  const warnings = [];
+  let d = JSON.parse(JSON.stringify({ settings: raw.settings || {}, days: raw.days || {} }));
+  let v = Number.isInteger(raw.version) && raw.version >= 1 ? raw.version : 1;
+  const sourceVersion = v;
+  if (v > SCHEMA) warnings.push(`This backup was made by a newer version of VibeTime (format ${v}). Anything this version doesn't understand is kept but ignored.`);
+  for (; v < SCHEMA; v++) d = MIGRATIONS[v](d);
+
+  const def = defaults().settings;
+  for (const [key, ok] of Object.entries(SETTING_RULES)) {
+    if (d.settings[key] === undefined) continue;
+    if (!ok(d.settings[key])) { warnings.push(`The "${key}" setting was invalid and was reset to its default.`); delete d.settings[key]; }
+  }
+  d.settings = { ...def, ...d.settings };
+
+  let skipped = 0;
+  for (const k of Object.keys(d.days)) {
+    const e = d.days[k];
+    let good = /^\d{4}-\d{2}-\d{2}$/.test(k) && !isNaN(parseDate(k)) && e && typeof e === 'object' && !Array.isArray(e);
+    if (good) {
+      for (const f of ['w', 'pto', 'sick']) if (f in e && !nonNeg(e[f])) delete e[f];
+      good = ['w', 'pto', 'sick'].some(f => f in e);
+    }
+    if (!good) { delete d.days[k]; skipped++; }
+  }
+  if (skipped) warnings.push(`${skipped} day entr${skipped === 1 ? 'y was' : 'ies were'} unreadable and skipped.`);
+  d.version = SCHEMA;
+  return { data: d, warnings, sourceVersion };
 }
-migrateSettings();
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+
+let state;
+try {
+  const stored = localStorage.getItem(KEY);
+  try { state = stored ? migrateState(JSON.parse(stored)).data : defaults(); }
+  catch (err) {                       // unreadable saved data: keep a copy aside instead of overwriting it silently
+    try { localStorage.setItem(KEY + '.corrupt', stored); } catch {}
+    state = defaults();
+  }
+} catch { state = defaults(); }
+const save = () => { state.version = SCHEMA; try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+
+// Backup file contents, and a safety copy of the current data taken before any import or erase.
+const exportData = () => ({ app: 'vibetime', version: SCHEMA, exportedAt: new Date().toISOString(), settings: state.settings, days: state.days });
+const BACKUP_KEY = KEY + '.backup';
+function stashBackup() { try { localStorage.setItem(BACKUP_KEY, JSON.stringify({ at: new Date().toISOString(), state })); } catch {} }
+function readBackup() { try { return JSON.parse(localStorage.getItem(BACKUP_KEY)); } catch { return null; } }
 
 // ---- theme + navigation
 const ICONS = {
@@ -187,22 +264,6 @@ function setLeave(k, type, hours, persist = true) {
   if (persist) save();
 }
 const LEAVE_NAME = { pto: 'PTO', sick: 'Sick leave' };
-// Older saves used { h, leave, type, lh }; convert them to { w, pto, sick }.
-function migrateDays(days) {
-  for (const k in days) {
-    const e = days[k];
-    if ('w' in e || 'pto' in e || 'sick' in e || !('h' in e || 'leave' in e)) continue;
-    const n = {};
-    if (!e.leave) n.w = e.h || 0;
-    else {
-      if (e.h) n.w = e.h;
-      n[e.type || 'pto'] = e.lh != null ? e.lh : state.settings.target;
-    }
-    days[k] = n;
-  }
-}
-migrateDays(state.days);
-
 // Time-off usage for a calendar year, in hours. Leave on non-working days or public holidays doesn't count.
 function leaveStats(year) {
   const today = startOfToday();

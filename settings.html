@@ -45,15 +45,34 @@
   </section>
 
   <section class="panel section">
-    <h2>Data</h2>
+    <h2>Your data</h2>
+    <p class="lede" id="dataInfo"></p>
     <div class="row">
-      <button class="btn" id="export">Export backup</button>
+      <button class="btn primary" id="export">Export backup</button>
       <button class="btn" id="import">Import backup</button>
+      <button class="btn" id="undo" hidden>Undo last import or erase</button>
       <button class="btn danger" id="reset">Erase everything</button>
-      <input type="file" id="file" accept="application/json" hidden>
+      <input type="file" id="file" accept="application/json,.json" hidden>
     </div>
+    <p class="hint" style="color:var(--muted);font-size:14px;margin:12px 0 0">A backup holds every setting and every logged day in one file. Backups made by older versions still import, and backups stay readable after future updates.</p>
   </section>
 </main>
+
+<dialog id="idlg">
+  <div class="dbody">
+    <h2>Import this backup?</h2>
+    <p class="dsub" id="isum"></p>
+    <ul class="list" id="iwarn"></ul>
+    <p class="dsub" style="margin-top:12px">Your current data is saved first, so you can undo this.</p>
+    <div class="dact" style="flex-wrap:wrap">
+      <button class="btn primary" type="button" id="irepl">Replace everything</button>
+      <button class="btn" type="button" id="imerge">Merge days only</button>
+      <span class="sp"></span>
+      <button class="btn" type="button" id="icancel">Cancel</button>
+    </div>
+    <p class="dsub" style="margin:10px 0 0">Merge keeps your settings and adds the backup's days (the backup wins on dates in both).</p>
+  </div>
+</dialog>
 
 <script>
 renderNav('settings.html');
@@ -101,22 +120,58 @@ dayPick.addEventListener('change', () => {
 });
 renderDays();
 
-document.getElementById('export').onclick = () => {
+const $ = id => document.getElementById(id);
+const dayCount = () => Object.keys(state.days).length;
+function refreshDataInfo() {
+  const n = dayCount(), keys = Object.keys(state.days).sort();
+  $('dataInfo').textContent = n ? `${n} logged day${n === 1 ? '' : 's'}, from ${keys[0]} to ${keys[n - 1]}, plus all your settings. Stored in this browser only.` : 'Nothing logged yet. Data is stored in this browser only, so export a backup now and then.';
+  const b = readBackup();
+  $('undo').hidden = !b;
+}
+refreshDataInfo();
+
+$('export').onclick = () => {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }));
-  a.download = `flex-time-${fmt(new Date())}.json`; a.click(); URL.revokeObjectURL(a.href);
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(exportData(), null, 2)], { type: 'application/json' }));
+  a.download = `vibetime-backup-${fmt(new Date())}.json`; a.click(); URL.revokeObjectURL(a.href);
 };
-document.getElementById('import').onclick = () => document.getElementById('file').click();
-document.getElementById('file').onchange = async e => {
+
+let pending = null;
+$('import').onclick = () => $('file').click();
+$('file').onchange = async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  let raw;
   try {
-    const data = JSON.parse(await e.target.files[0].text());
-    if (!data.days || !data.settings) throw 0;
-    state = data; state.settings = { ...defaults().settings, ...state.settings }; migrateDays(state.days); migrateSettings(); save(); loadSettings(); renderDays(); countrySel.value = state.settings.country; renderHolidayList(); applyTheme();
-  } catch { alert('That file is not a valid export.'); }
-  e.target.value = '';
+    try { raw = JSON.parse(await file.text()); } catch { throw new Error('That file is not valid JSON, so it can\'t be a VibeTime backup.'); }
+    pending = migrateState(raw);
+  } catch (err) { alert(err.message); return; }
+  const keys = Object.keys(pending.data.days).sort(), n = keys.length;
+  const when = isNaN(Date.parse(raw.exportedAt)) ? '' : ` exported ${new Date(raw.exportedAt).toLocaleDateString('en', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+  $('isum').textContent = `Backup${when}: ${n} logged day${n === 1 ? '' : 's'}${n ? ` (${keys[0]} to ${keys[n - 1]})` : ''} and all settings.${pending.sourceVersion < SCHEMA ? ' It was made by an older version and will be upgraded.' : ''}`;
+  $('iwarn').innerHTML = pending.warnings.map(w => `<li><span class="d neg">${w}</span></li>`).join('');
+  $('idlg').showModal();
 };
-document.getElementById('reset').onclick = () => {
-  if (confirm('Erase all logged hours and settings?')) { state = defaults(); save(); loadSettings(); renderDays(); countrySel.value = ''; renderHolidayList(); applyTheme(); }
+const applyImport = mode => {
+  stashBackup();
+  if (mode === 'replace') state = pending.data;
+  else state.days = { ...state.days, ...pending.data.days };
+  save(); location.reload();
+};
+$('irepl').onclick = () => applyImport('replace');
+$('imerge').onclick = () => applyImport('merge');
+$('icancel').onclick = () => $('idlg').close();
+$('idlg').addEventListener('click', ev => { if (ev.target === $('idlg')) $('idlg').close(); });
+
+$('undo').onclick = () => {
+  const b = readBackup(); if (!b) return;
+  if (!confirm(`Restore the data you had on ${new Date(b.at).toLocaleString('en')}? What you have now will be replaced.`)) return;
+  try { state = migrateState(b.state).data; save(); localStorage.removeItem(BACKUP_KEY); location.reload(); }
+  catch (err) { alert(err.message); }
+};
+$('reset').onclick = () => {
+  if (!confirm('Erase all logged time and settings? A safety copy is kept so you can undo this.')) return;
+  stashBackup(); state = defaults(); save(); location.reload();
 };
 </script>
 </body>
