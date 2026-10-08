@@ -4,11 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=878b34af">
+<link rel="stylesheet" href="style.css?v=80e4fd9a">
 <script src="holidays.js?v=270cf135"></script>
-<script src="app.js?v=84b31526"></script>
+<script src="app.js?v=3391b4b0"></script>
 <script src="sky.js?v=5f491f8d"></script>
-<script src="trend.js?v=8f22d2ae"></script>
 </head>
 <body>
 <div id="nav"></div>
@@ -54,8 +53,6 @@
 
   <div class="stats" id="stats"></div>
 
-  <div id="trendMain"></div>
-
   <div class="leaves" id="leaves"></div>
 
   <div class="grid2">
@@ -79,7 +76,7 @@
     <div>
       <section class="panel">
         <h2>Unlogged days</h2>
-        <p class="dsub" style="margin:-6px 0 6px">Past working days with nothing logged yet. They don't count toward your balance until you fill them in.</p>
+        <p class="dsub" style="margin:-6px 0 6px">Past working days with nothing logged. They count as 0h worked until you fill them in.</p>
         <ul class="list" id="missing"></ul>
       </section>
       <section class="panel mt" id="holPanel">
@@ -89,7 +86,6 @@
     </div>
   </div>
   </div>
-  <aside class="rail" id="rail" aria-label="Balance trajectory for this quarter"></aside>
   </div>
 </main>
 
@@ -139,15 +135,6 @@ function placeHiker(p) {
   document.getElementById('rainin').innerHTML = r;
 })();
 
-// balance trajectory: in the right-hand panel on wide screens, in the main column otherwise
-function renderTrend() {
-  for (const [el, uid] of [[$('rail'), 'a'], [$('trendMain'), 'b']]) {
-    const t = trendHTML(uid);
-    el.innerHTML = t.html;
-    attachTrendHover(el, t.c);
-  }
-}
-
 function weekCard() {
   const g = weekGroup(mondayOf(new Date()), 6, 6, 208, 84);
   return `<a class="panel stat weekcard" href="sky.html" aria-label="Open the star chart">
@@ -182,7 +169,6 @@ function renderStats() {
   $('lblEnd').textContent = s.qEnd.toLocaleDateString('en', { day: 'numeric', month: 'short' });
   placeHiker(Math.max(0, Math.min(1, (s.today - qs) / (s.qEnd - qs))));
 
-  renderTrend();
   $('stats').innerHTML = `
     <div class="panel stat">
       <div class="k">Balance</div>

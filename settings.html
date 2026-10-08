@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Settings · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=878b34af">
+<link rel="stylesheet" href="style.css?v=80e4fd9a">
 <script src="holidays.js?v=270cf135"></script>
-<script src="app.js?v=84b31526"></script>
+<script src="app.js?v=3391b4b0"></script>
 </head>
 <body>
 <div id="nav"></div>
@@ -21,7 +21,7 @@
       <label class="field"><span class="t"><b>Country</b><span>Public holidays on working days expect no hours.</span></span><select class="inp" id="sCountry"><option value="">None</option></select></label>
       <label class="field" id="regionRow" hidden><span class="t"><b>Region</b><span>Optional. Adds holidays that only apply in one part of the country.</span></span><select class="inp" id="sRegion"></select></label>
       <label class="field"><span class="t"><b>Hours per workday</b><span>Expected on each working day.</span></span><input class="inp" type="number" step="0.25" min="0" id="sTarget"></label>
-      <label class="field"><span class="t"><b>Tracking starts</b><span>Days before this date are ignored.</span></span><input class="inp" type="date" id="sStart"></label>
+      <label class="field"><span class="t"><b>Tracking starts</b><span>Days before this date are ignored. From this date on, a working day with nothing logged counts as 0h.</span></span><input class="inp" type="date" id="sStart"></label>
       <label class="field"><span class="t"><b>Opening balance (h)</b><span>Your plus/minus balance on the start date.</span></span><input class="inp" type="number" step="0.25" id="sOpening"></label>
     </div>
   </section>

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Calendar · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=878b34af">
+<link rel="stylesheet" href="style.css?v=80e4fd9a">
 <script src="holidays.js?v=270cf135"></script>
-<script src="app.js?v=84b31526"></script>
+<script src="app.js?v=3391b4b0"></script>
 </head>
 <body>
 <div id="nav"></div>
@@ -82,13 +82,13 @@ function renderCal(dir = 0) {
     const missing = wk && !hol && !e && k < todayS && inRange;
     const locked = !wk && !e;
     const tot = e ? creditedFor(e, d) : 0;
-    const dl = e && inRange ? tot - exp : null;
+    const dl = e && inRange ? tot - exp : (missing && exp > 0 ? -exp : null);
     const dtxt = dl == null ? '' : Math.abs(dl) < 1e-9 ? (hol ? 'Holiday' : 'On target') : fh(dl);
     let rows = e ? PARTS.filter(([key]) => (e[key] || 0) > 0) : [];
     if (e && !rows.length) rows = [PARTS[0]];
     const scale = Math.max(exp, tot) || 1;
     const meter = e ? `<div class="meter stack">${PARTS.map(([key, , c]) => (e[key] || 0) > 0 && (key === 'w' || exp > 0) ? `<i class="${c}" style="width:${e[key] / scale * 100}%"></i>` : '').join('')}</div>` : '';
-    if (e && inRange) { wkT += tot; wkD += dl; wkAny = true; }
+    if ((e && inRange) || (missing && exp > 0)) { wkT += tot; wkD += dl; wkAny = true; }
     const classes = ['day', !wk && 'off', k === todayS && 'today', hol && 'holiday'].filter(Boolean).join(' ');
     html += `<button type="button" class="${classes}" data-k="${k}" style="--i:${idx}" ${locked ? 'disabled' : ''} aria-label="${d.toDateString()}">
       <span class="top"><span class="num">${n}</span>${missing ? '<i class="miss" title="Nothing logged"></i>' : ''}</span>

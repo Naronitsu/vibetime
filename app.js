@@ -197,17 +197,24 @@ const deltaFor = d => {
   const e = state.days[fmt(d)];
   return e ? creditedFor(e, d) - expectedFor(d) : 0;
 };
-// Balance = opening + deltas of logged days from the start date through `end` (inclusive).
+// What one calendar day adds to the balance. A logged day adds (credited - expected). A working day in the past that was
+// never logged counts as 0h worked, so it adds -expected. Today and future days add nothing until something is logged.
+function dayDelta(d, today) {
+  const e = state.days[fmt(d)];
+  if (e) return creditedFor(e, d) - expectedFor(d);
+  return d < today ? -expectedFor(d) : 0;
+}
+// Balance = opening + every day from the tracking start date through `end` (inclusive).
 function balanceThrough(end) {
   let b = Number(state.settings.opening) || 0;
-  const e = fmt(end);
-  for (const k in state.days) if (k >= state.settings.start && k <= e) b += deltaFor(parseDate(k));
+  const today = startOfToday();
+  for (const d = parseDate(state.settings.start); d <= end; d.setDate(d.getDate() + 1)) b += dayDelta(d, today);
   return b;
 }
 function monthDelta(y, m) {
   let s = 0;
-  const prefix = `${y}-${pad(m+1)}-`;
-  for (const k in state.days) if (k.startsWith(prefix) && k >= state.settings.start) s += deltaFor(parseDate(k));
+  const today = startOfToday(), start = parseDate(state.settings.start);
+  for (let d = new Date(y, m, 1); d.getMonth() === m; d.setDate(d.getDate() + 1)) if (d >= start) s += dayDelta(d, today);
   return s;
 }
 const quarterEnd = d => new Date(d.getFullYear(), Math.floor(d.getMonth()/3)*3 + 3, 0);
