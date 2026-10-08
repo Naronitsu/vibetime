@@ -17,28 +17,29 @@ const weekDays = monday => SKY_ORDER.filter(wd => state.settings.workDays.includ
 function mulberry32(a) {
   return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
-// n points that wander left to right like a connect-the-dots, scaled to fill a w x h box.
+// n well-spread points in a w x h box, joined into one path that starts at the left-most star and always steps to the
+// nearest unvisited one. Every week gets a different shape, but it always reads as a tidy connect-the-dots.
 function constellation(seed, n, w, h) {
-  const rnd = mulberry32(seed), pad = 8, pts = [];
+  const rnd = mulberry32(seed), pad = 9, pts = [];
   if (!n) return pts;
-  pts.push({ x: rnd() * w * 0.25, y: rnd() * h });
-  while (pts.length < n) {
-    const p = pts[pts.length - 1];
-    let best = null;
-    for (let t = 0; t < 40 && !best; t++) {
-      const ang = (rnd() - 0.5) * 4.6, dist = (0.16 + rnd() * 0.26) * w;
-      const c = { x: p.x + Math.cos(ang) * dist, y: p.y + Math.sin(ang) * dist * 0.9 };
-      if (c.y < 0 || c.y > h) continue;
-      if (pts.every(q => Math.hypot(q.x - c.x, q.y - c.y) > w * 0.12)) best = c;
+  const dist = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
+  for (let i = 0; i < n; i++) {
+    let best = null, bestScore = -1;
+    for (let t = 0; t < (i ? 14 : 1); t++) {                      // "best candidate": keep the point farthest from the others
+      const c = { x: pad + rnd() * (w - 2 * pad), y: pad + rnd() * (h - 2 * pad) };
+      const score = pts.length ? Math.min(...pts.map(p => dist(p, c))) : 1;
+      if (score > bestScore) { best = c; bestScore = score; }
     }
-    pts.push(best || { x: p.x + w * 0.2, y: rnd() * h });
+    pts.push(best);
   }
-  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
-  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-  return pts.map(p => ({
-    x: pad + (x1 === x0 ? 0.5 : (p.x - x0) / (x1 - x0)) * (w - 2 * pad),
-    y: pad + (y1 === y0 ? 0.5 : (p.y - y0) / (y1 - y0)) * (h - 2 * pad),
-  }));
+  const left = pts.reduce((m, p) => p.x < m.x ? p : m, pts[0]);
+  const path = [left], rest = pts.filter(p => p !== left);
+  while (rest.length) {
+    const last = path[path.length - 1];
+    rest.sort((p, q) => dist(last, p) - dist(last, q));
+    path.push(rest.shift());
+  }
+  return path;
 }
 
 // What a day's star looks like. `lit` stars are logged days and public holidays that have passed.
@@ -82,7 +83,11 @@ function starSVG(i, x, y, n) {
   const col = i.kind === 'holiday' ? 'h' : i.color;
   const r = i.kind === 'logged' ? (i.delta > 0.25 ? 6 : i.delta < -0.25 ? 4.2 : 5) : 4;
   const cls = ['st', i.kind, 'c-' + col, i.perfect && 'perfect', i.delta > 0.25 && 'over'].filter(Boolean).join(' ');
-  const shape = i.lit ? `<g transform="translate(${f1(x)} ${f1(y)})"><g class="tw"><path d="${sparkPath(r * 1.8)}"/></g></g>` : `<circle cx="${f1(x)}" cy="${f1(y)}" r="${r}"/>`;
+  const cx = f1(x), cy = f1(y);
+  const shape = i.lit ? `<g transform="translate(${cx} ${cy})"><g class="tw"><path d="${sparkPath(r * 1.8)}"/></g></g>`
+    : i.kind === 'future' || i.kind === 'before' ? `<circle class="dot" cx="${cx}" cy="${cy}" r="2.2"/>`
+    : i.kind === 'today' ? `<circle class="ring" cx="${cx}" cy="${cy}" r="5.5"/><circle class="dot" cx="${cx}" cy="${cy}" r="2"/>`
+    : `<circle class="ring" cx="${cx}" cy="${cy}" r="${r}"/>`;
   return `<g class="${cls}" data-k="${i.k}" data-tip="${esc(starTip(i))}" style="--d:${n * 90}ms"><circle class="hit" cx="${f1(x)}" cy="${f1(y)}" r="10"/>${shape}</g>`;
 }
 

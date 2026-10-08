@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=83238938">
+<link rel="stylesheet" href="style.css?v=fe20906f">
 <script src="holidays.js?v=270cf135"></script>
 <script src="app.js?v=84b31526"></script>
-<script src="sky.js?v=4e275a07"></script>
+<script src="sky.js?v=5f491f8d"></script>
 </head>
 <body>
 <div id="nav"></div>
@@ -146,10 +146,10 @@ function renderRail() {
 attachSkyTips($('rail'));
 
 function weekCard() {
-  const g = weekGroup(mondayOf(new Date()), 8, 8, 204, 62);
+  const g = weekGroup(mondayOf(new Date()), 6, 6, 208, 84);
   return `<a class="panel stat weekcard" href="sky.html" aria-label="Open the star chart">
       <div class="k">This week's constellation</div>
-      <div class="skybox"><svg viewBox="0 0 220 78" role="img" aria-label="This week's stars">${g.svg}</svg></div>
+      <div class="skybox"><svg viewBox="0 0 220 96" role="img" aria-label="This week's stars">${g.svg}</svg></div>
       <div class="s"><b>${g.lit} of ${g.n}</b> stars lit${g.complete ? ' · constellation complete' : ''}</div>
     </a>`;
 }
