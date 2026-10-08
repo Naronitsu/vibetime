@@ -165,6 +165,7 @@ $('dform').onsubmit = ev => {
 $('prev').onclick = () => { view.setMonth(view.getMonth()-1); render(-1); };
 $('next').onclick = () => { view.setMonth(view.getMonth()+1); render(1); };
 $('today').onclick = () => { view = new Date(); view.setDate(1); render(1); };
+window.addEventListener('holidays-updated', () => render(null));
 render();
 </script>
 </body>

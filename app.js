@@ -9,7 +9,7 @@ const startOfToday = () => { const d = new Date(); d.setHours(0,0,0,0); return d
 function defaults() {
   const now = new Date();
   return {
-    settings: { target: 8, workDays: [1, 2, 3, 4, 5], country: '', ptoTotal: 0, sickTotal: 0, limitMax: 4, limitMin: 4, quarterTarget: 0, theme: 'dark',
+    settings: { target: 8, workDays: [1, 2, 3, 4, 5], country: '', region: '', ptoTotal: 0, sickTotal: 0, limitMax: 4, limitMin: 4, quarterTarget: 0, theme: 'dark',
                 start: fmt(new Date(now.getFullYear(), now.getMonth(), 1)), opening: 0 },
     days: {},
     version: SCHEMA,
@@ -34,7 +34,7 @@ const SETTING_RULES = {
   quarterTarget: Number.isFinite, opening: Number.isFinite,
   start: v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v),
   workDays: v => Array.isArray(v) && v.every(n => Number.isInteger(n) && n >= 0 && n <= 6),
-  country: v => typeof v === 'string',
+  country: v => typeof v === 'string', region: v => typeof v === 'string',
   theme: v => v === 'dark' || v === 'light',
 };
 const MIGRATIONS = {
@@ -144,13 +144,17 @@ function renderNav(page) {
   applyTheme();
 }
 
-// ---- public holidays
+// ---- public holidays (data and loading live in holidays.js)
 const _hol = {};
 function holidayName(d) {
-  const c = COUNTRIES[state.settings.country];
-  if (!c) return null;
-  const key = state.settings.country + d.getFullYear();
-  if (!_hol[key]) _hol[key] = Object.fromEntries(c.holidays(d.getFullYear()).map(h => [h.date, h.name]));
+  const cc = state.settings.country;
+  if (!cc) return null;
+  const y = d.getFullYear(), key = `${cc}|${state.settings.region}|${y}`;
+  if (!_hol[key]) {
+    const list = holidayList(cc, state.settings.region, y);
+    if (!list) return null;                       // still loading; pages re-render on 'holidays-updated'
+    _hol[key] = Object.fromEntries(list.map(h => [h.date, h.name]));
+  }
   return _hol[key][fmt(d)] || null;
 }
 function upcomingHolidays(n = 5) {
@@ -161,6 +165,7 @@ function upcomingHolidays(n = 5) {
   }
   return out;
 }
+prefetchHolidays(state.settings.country);
 
 // ---- calculations
 // A day entry is { w, pto, sick }: hours worked, PTO hours and sick-leave hours, each optional and independent.

@@ -358,6 +358,7 @@ $('missing').onclick = ev => {
   else { dateEl.value = k; loadDay(); hoursEl.focus(); }
 };
 
+window.addEventListener('holidays-updated', () => { renderStats(); renderLeaves(); renderMissing(); renderHolidays(); updatePreview(); });
 refresh();
 hoursEl.focus({ preventScroll: true });
 </script>
