@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Today · Flex time</title>
+<title>Today · VibeTime</title>
 <link rel="stylesheet" href="style.css">
 <script src="holidays.js"></script>
 <script src="app.js"></script>
@@ -11,8 +11,35 @@
 <body>
 <div id="nav"></div>
 <main>
-  <h1 id="title">Today</h1>
-  <p class="lede" id="lede"></p>
+  <section class="panel hero">
+    <div class="hero-text">
+      <div class="eyebrow" id="eyebrow"></div>
+      <h1 id="title">Today</h1>
+      <p class="lede" id="lede"></p>
+      <span class="badge" id="qbadge"></span>
+    </div>
+    <svg class="scene" id="scene" viewBox="0 0 520 240" role="img" aria-label="Your progress through the quarter, climbing toward its last day">
+      <circle class="rays" cx="62" cy="42" r="28" fill="none" stroke-dasharray="3 8"/>
+      <circle class="sun stroke" cx="62" cy="42" r="19"/>
+      <g class="cloud a"><ellipse cx="190" cy="62" rx="26" ry="11"/><ellipse cx="208" cy="55" rx="17" ry="12"/><ellipse cx="174" cy="57" rx="14" ry="9"/></g>
+      <g class="cloud b"><ellipse cx="450" cy="92" rx="20" ry="8"/><ellipse cx="462" cy="86" rx="12" ry="9"/></g>
+      <path class="m3 stroke" d="M-10 214 L70 128 L150 214 Z"/>
+      <path class="m1 stroke" d="M96 214 L215 84 L330 214 Z"/>
+      <path class="snow stroke" d="M215 84 L234 106 L224 101 L215 111 L206 100 L196 107 Z"/>
+      <path class="m2 stroke" d="M270 214 L392 40 L530 214 Z"/>
+      <path class="snow stroke" d="M392 40 L414 72 L402 66 L392 80 L381 66 L370 74 Z"/>
+      <path class="m3 stroke" d="M-5 240 V205 Q120 192 260 206 T530 200 V240 Z"/>
+      <path class="trail" id="trail" d="M30 222 C95 214 118 188 170 186 S250 190 288 150 S348 96 388 56"/>
+      <g class="flag"><line x1="392" y1="40" x2="392" y2="14" style="stroke:var(--line)" stroke-width="3" stroke-linecap="round"/><path d="M392 14 L418 21 L392 29 Z" style="fill:var(--accent);stroke:var(--line)" stroke-width="2.5" stroke-linejoin="round"/></g>
+      <text id="lblStart" x="14" y="236"></text>
+      <text id="lblEnd" x="424" y="36" text-anchor="start"></text>
+      <g id="hikerPos"><g class="hiker">
+        <rect x="-6" y="-6" width="12" height="11" rx="4" style="fill:var(--sky);stroke:var(--line)" stroke-width="2.5"/>
+        <circle cx="0" cy="-13" r="6.5" style="fill:#ffd9b0;stroke:var(--line)" stroke-width="2.5"/>
+        <path d="M-9 -16 L1 -32 L9 -16 Z" style="fill:var(--bad);stroke:var(--line)" stroke-width="2.5" stroke-linejoin="round"/>
+      </g></g>
+    </svg>
+  </section>
 
   <div class="stats" id="stats"></div>
 
@@ -20,7 +47,7 @@
 
   <div class="grid2">
     <section class="panel">
-      <h2>Log time</h2>
+      <h2>Log the day</h2>
       <label class="f" for="date">Day</label>
       <input class="inp" type="date" id="date">
       <div class="lab mt"><label class="f" for="hours">Worked</label><button type="button" class="fill" data-fill="hours">Fill rest</button></div>
@@ -38,11 +65,11 @@
 
     <div>
       <section class="panel">
-        <h2>Not logged yet</h2>
+        <h2>Still unwritten</h2>
         <ul class="list" id="missing"></ul>
       </section>
       <section class="panel mt" id="holPanel" hidden>
-        <h2>Upcoming public holidays</h2>
+        <h2>Festivals ahead</h2>
         <ul class="list" id="holidays"></ul>
       </section>
     </div>
@@ -56,37 +83,54 @@ const $ = id => document.getElementById(id);
 const dateEl = $('date'), hoursEl = $('hours'), preview = $('preview');
 dateEl.value = fmt(new Date());
 
-function renderStats() {
-  const s = stats(), { target, limitMax, limitMin, quarterTarget } = state.settings;
-  $('title').textContent = longDate(s.today);
-  $('lede').textContent = 'Log your day, check where you stand.';
+let hikerDone = false;
+function placeHiker(p) {
+  const path = $('trail'), L = path.getTotalLength(), el = $('hikerPos');
+  const put = k => { const pt = path.getPointAtLength(L * k); el.setAttribute('transform', `translate(${pt.x},${pt.y})`); };
+  if (hikerDone || matchMedia('(prefers-reduced-motion: reduce)').matches) { put(p); hikerDone = true; return; }
+  hikerDone = true;
+  const t0 = performance.now();
+  const step = now => { const k = Math.min(1, (now - t0) / 1500); put(p * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
 
-  let q;
-  if (Math.abs(s.gap) < 0.01) q = '<span class="badge ok">At target</span>';
-  else if (s.remaining === 0) q = '<span class="badge bad">Quarter over, target missed</span>';
-  else if (s.needAvg > 12 || s.needAvg < 0) q = '<span class="badge bad">Hard to recover</span>';
-  else q = Math.abs(s.needAvg - target) > 1.5 ? '<span class="badge warn">Needs adjusting</span>' : '<span class="badge ok">Recoverable</span>';
+function renderStats() {
+  const s = stats(), { target, limitMax, limitMin } = state.settings;
+  const hr = new Date().getHours();
+  $('eyebrow').textContent = `${hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening'}, traveller`;
+  $('title').textContent = longDate(s.today);
+
+  const qd = s.qEnd.toLocaleDateString('en', { day: 'numeric', month: 'long' });
+  const msg = Math.abs(s.gap) < 0.01 ? `Right on the trail. Nothing to make up before ${qd}.`
+    : s.gap > 0 ? `You're carrying ${fh(s.gap, false)} extra. Take it back as time off before ${qd}.`
+    : `You're ${fh(-s.gap, false)} short. Make it up before ${qd}.`;
+  $('lede').textContent = `${msg} ${fd(s.remaining)} workday${s.remaining === 1 ? '' : 's'} to go.`;
+  let [bc, bt] = Math.abs(s.gap) < 0.01 ? ['ok', 'On track']
+    : s.remaining === 0 ? ['bad', 'Summit missed']
+    : (s.needAvg > 12 || s.needAvg < 0) ? ['bad', 'Steep climb']
+    : Math.abs(s.needAvg - target) > 1.5 ? ['warn', 'Needs a plan'] : ['ok', 'On the trail'];
+  $('qbadge').className = `badge ${bc}`; $('qbadge').textContent = bt;
+
+  const qs = new Date(s.today.getFullYear(), Math.floor(s.today.getMonth() / 3) * 3, 1);
+  $('lblStart').textContent = qs.toLocaleDateString('en', { day: 'numeric', month: 'short' });
+  $('lblEnd').textContent = s.qEnd.toLocaleDateString('en', { day: 'numeric', month: 'short' });
+  placeHiker(Math.max(0, Math.min(1, (s.today - qs) / (s.qEnd - qs))));
 
   $('stats').innerHTML = `
     <div class="panel stat">
       <div class="k">Balance</div>
-      <div class="v ${cls(s.bal)}">${fh(s.bal)}</div>
-      <div class="s">${s.today.toLocaleString('en',{month:'long'})} so far: <b class="tab">${fh(s.mDelta)}</b></div>
+      <div class="v huge ${cls(s.bal)}">${fh(s.bal)}</div>
+      <div class="s">${s.today.toLocaleString('en', { month: 'long' })} so far: <b class="tab">${fh(s.mDelta)}</b></div>
     </div>
     <div class="panel stat">
       <div class="k">Monthly limit</div>
       <div class="scale">
-        <div class="fill" style="left:${Math.min(s.zero,s.pct)}%;width:${Math.abs(s.pct-s.zero)}%;transform-origin:${s.pct < s.zero ? 'right' : 'left'}"></div>
+        <div class="sfill" style="left:${Math.min(s.zero, s.pct)}%;width:${Math.abs(s.pct - s.zero)}%;transform-origin:${s.pct < s.zero ? 'right' : 'left'}"></div>
         <div class="zero" style="left:${s.zero}%"></div>
         <div class="dot" style="left:${s.pct}%;--z:${s.zero}%"></div>
       </div>
       <div class="ends tab"><span>−${limitMin}h</span><span>+${limitMax}h</span></div>
-      <div style="margin-top:8px"><span class="badge ${s.within ? 'ok' : 'bad'}">${s.within ? 'Within limit' : 'Outside limit'}</span></div>
-    </div>
-    <div class="panel stat">
-      <div class="k">Needed per day until ${s.qEnd.toLocaleDateString('en',{day:'numeric',month:'short'})}</div>
-      <div class="v">${s.needAvg == null ? '—' : fh(s.needAvg, false) + ' <small>/ day</small>'}</div>
-      <div class="s">${q} ${fd(s.remaining)} workday${s.remaining===1?'':'s'} left${Math.abs(s.gap) >= 0.01 ? `; ${s.gap > 0 ? 'take back' : 'make up'} ${fh(Math.abs(s.gap), false)} to end at ${fh(quarterTarget)}` : ''}.</div>
+      <div style="margin-top:10px"><span class="badge ${s.within ? 'ok' : 'bad'}">${s.within ? 'Within limit' : 'Outside limit'}</span></div>
     </div>`;
 }
 
@@ -132,16 +176,31 @@ function updatePreview() {
   const tot = num(v.w) + (exp > 0 ? num(v.pto) + num(v.sick) : 0), dl = tot - exp;
   preview.innerHTML = `Total <b>${fh(tot, false)}</b>${exp ? ` of ${fh(exp, false)} expected` : ''}: <b class="${cls(dl)}">${Math.abs(dl) < 1e-9 ? 'on target' : fh(dl)}</b>`;
 }
+const BOTTLE = 'M30 14 V30 C30 40 12 44 12 62 V92 A14 14 0 0 0 26 106 H54 A14 14 0 0 0 68 92 V62 C68 44 50 40 50 30 V14 Z';
+const WAVE = 'M-80 0 q10 -5 20 0' + ' t20 0'.repeat(11) + ' V120 H-80 Z';
 function renderLeaves() {
   const y = new Date().getFullYear(), L = leaveStats(y);
   $('leaves').innerHTML = [['pto', 'PTO'], ['sick', 'Sick leave']].map(([t, name]) => {
     const x = L[t], set = x.total > 0;
+    const frac = set ? Math.max(0, Math.min(1, x.remaining / x.total)) : 0;
+    const lvl = 106 - 62 * frac;
     return `<div class="panel stat ${t}">
-      <div class="k">${name} · ${y}</div>
-      <div class="v ${x.remaining < 0 ? 'neg' : ''}">${set ? fd(x.remaining) : fd(x.booked)} <small>${set ? 'days left' : 'days booked'}</small></div>
-      <div class="meter big"><i class="${x.remaining < 0 ? 'neg' : ''}" style="width:${set ? Math.min(100, x.booked / x.total * 100) : 0}%"></i></div>
-      <div class="split tab"><span><b>${fd(x.total)}</b>total</span><span><b>${fd(x.booked)}</b>booked</span><span><b>${fd(x.remaining)}</b>remaining</span></div>
-      <div class="s">${fd(x.taken)} taken, ${fd(x.upcoming)} upcoming${set ? '' : ' · <a href="settings.html">set your allowance</a>'}</div>
+      <svg class="bottle" viewBox="0 0 80 110" aria-hidden="true">
+        <defs><clipPath id="clip-${t}"><path d="${BOTTLE}"/></clipPath></defs>
+        <g clip-path="url(#clip-${t})">
+          <rect class="glass" x="0" y="0" width="80" height="110"/>
+          <g class="level" style="transform:translateY(${lvl}px)"><path class="liq wave" d="${WAVE}"/></g>
+        </g>
+        <path class="shine" d="M21 68 V88"/>
+        <path class="outline" d="${BOTTLE}"/>
+        <rect class="cork" x="26" y="4" width="28" height="12" rx="4"/>
+      </svg>
+      <div class="body">
+        <div class="k">${name} · ${y}</div>
+        <div class="v ${x.remaining < 0 ? 'neg' : ''}">${set ? fd(x.remaining) : fd(x.booked)} <small>${set ? 'days left' : 'days booked'}</small></div>
+        <div class="split tab"><span><b>${fd(x.total)}</b>total</span><span><b>${fd(x.booked)}</b>booked</span><span><b>${fd(x.remaining)}</b>left</span></div>
+        <div class="s">${fd(x.taken)} taken, ${fd(x.upcoming)} upcoming${set ? '' : ' · <a href="settings.html">set your allowance</a>'}</div>
+      </div>
     </div>`;
   }).join('');
 }

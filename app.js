@@ -22,29 +22,36 @@ if (state.settings.limit != null) { state.settings.limitMax = state.settings.lim
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
 
 // ---- theme + navigation
+const ICONS = {
+  today: '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>',
+  calendar: '<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  settings: '<svg class="ic" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>',
+  sun: '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  moon: '<svg class="ic" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>',
+};
+const BRAND = `<svg viewBox="0 0 48 48" aria-hidden="true">
+  <circle class="sunrays" cx="24" cy="24" r="21" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="3 6" stroke-linecap="round"/>
+  <circle cx="24" cy="24" r="14" style="fill:var(--accent);stroke:var(--line)" stroke-width="3"/>
+  <path d="M12 33 L21 19 L26 26 L30 21 L37 33 Z" style="fill:var(--m2);stroke:var(--line)" stroke-width="3" stroke-linejoin="round"/></svg>`;
+
 function applyTheme() {
-  document.documentElement.dataset.theme = state.settings.theme;
-  const l = document.querySelector('#theme .lbl');
-  if (l) l.textContent = state.settings.theme === 'dark' ? 'Light mode' : 'Dark mode';
+  const dark = state.settings.theme !== 'light';
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  const b = document.getElementById('theme');
+  if (b) b.innerHTML = `${dark ? ICONS.sun : ICONS.moon}<span class="lbl">${dark ? 'Day mode' : 'Night mode'}</span>`;
 }
 applyTheme();
 
 function renderNav(page) {
-  const icons = {
-    today: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
-    calendar: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
-    settings: '<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>',
-    theme: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>',
-  };
-  const links = [['index.html', 'Today', icons.today], ['calendar.html', 'Calendar', icons.calendar], ['settings.html', 'Settings', icons.settings]];
+  const links = [['index.html', 'Today', ICONS.today], ['calendar.html', 'Calendar', ICONS.calendar], ['settings.html', 'Settings', ICONS.settings]];
   document.getElementById('nav').outerHTML = `
     <aside class="side">
-      <div class="brand">Flex<span>time</span></div>
+      <div class="brand">${BRAND}<span class="bt">Vibe<br>Time</span></div>
       <nav>${links.map(([h, t, i]) => `<a href="${h}" title="${t}" class="${h === page ? 'on' : ''}">${i}<span class="lbl">${t}</span></a>`).join('')}</nav>
-      <button class="themebtn" id="theme" title="Toggle light/dark">${icons.theme}<span class="lbl"></span></button>
+      <button class="themebtn" id="theme" title="Switch between day and night"></button>
     </aside>`;
   document.getElementById('theme').onclick = () => {
-    state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
+    state.settings.theme = state.settings.theme === 'light' ? 'dark' : 'light';
     save(); applyTheme();
   };
   applyTheme();
