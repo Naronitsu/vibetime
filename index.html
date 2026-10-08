@@ -4,14 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=f8f8b142">
+<link rel="stylesheet" href="style.css?v=83238938">
 <script src="holidays.js?v=270cf135"></script>
-<script src="app.js?v=42306ad4"></script>
-<script src="sky.js?v=d31505f3"></script>
+<script src="app.js?v=84b31526"></script>
+<script src="sky.js?v=4e275a07"></script>
 </head>
 <body>
 <div id="nav"></div>
-<main>
+<main class="w-today">
+  <div class="today">
+  <div class="today-main">
   <section class="panel hero">
     <div class="hero-text">
       <div class="eyebrow" id="eyebrow"></div>
@@ -83,6 +85,9 @@
       </section>
     </div>
   </div>
+  </div>
+  <aside class="rail" id="rail" aria-label="Your star chart for this quarter"></aside>
+  </div>
 </main>
 
 <dialog id="ldlg">
@@ -131,6 +136,15 @@ function placeHiker(p) {
   document.getElementById('rainin').innerHTML = r;
 })();
 
+// this quarter's three months as constellations, shown beside the page on wide screens
+function renderRail() {
+  const now = new Date(), q0 = Math.floor(now.getMonth() / 3) * 3;
+  let html = `<div class="railhead"><h2>Your sky</h2><a href="sky.html">Full year &rarr;</a></div>`;
+  for (let m = q0; m < q0 + 3; m++) html += skyCardHTML(now.getFullYear(), m, m - q0, m === now.getMonth()).html;
+  $('rail').innerHTML = html;
+}
+attachSkyTips($('rail'));
+
 function weekCard() {
   const g = weekGroup(mondayOf(new Date()), 8, 8, 204, 62);
   return `<a class="panel stat weekcard" href="sky.html" aria-label="Open the star chart">
@@ -165,10 +179,11 @@ function renderStats() {
   $('lblEnd').textContent = s.qEnd.toLocaleDateString('en', { day: 'numeric', month: 'short' });
   placeHiker(Math.max(0, Math.min(1, (s.today - qs) / (s.qEnd - qs))));
 
+  renderRail();
   $('stats').innerHTML = `
     <div class="panel stat">
       <div class="k">Balance</div>
-      <div class="v huge ${cls(s.bal)}">${fh(s.bal)}</div>
+      <div class="v huge ${cls(s.bal)}">${fhUnits(s.bal)}</div>
       <div class="s">${s.today.toLocaleString('en', { month: 'long' })} so far: <b class="tab">${fh(s.mDelta)}</b></div>
     </div>
     <div class="panel stat">
@@ -340,7 +355,7 @@ function renderLeaves() {
       </svg>
       <div class="body">
         <div class="k">${name} · ${y}</div>
-        <div class="v ${x.remaining < 0 ? 'neg' : ''}">${fh(set ? x.remaining : x.booked, false)} <small>${set ? 'left' : 'booked'}</small></div>
+        <div class="v ${x.remaining < 0 ? 'neg' : ''}">${fhUnits(set ? x.remaining : x.booked, false)} <small>${set ? 'left' : 'booked'}</small></div>
         <div class="split tab"><span><b>${fh(x.total, false)}</b>total</span><span><b>${fh(x.booked, false)}</b>booked</span><span><b>${fh(x.remaining, false)}</b>left</span></div>
         <div class="s">${fh(x.taken, false)} taken, ${fh(x.upcoming, false)} upcoming${set ? '' : ' · <a href="settings.html">set your allowance</a>'}</div>
         <div class="manage">Book or review dates &rarr;</div>

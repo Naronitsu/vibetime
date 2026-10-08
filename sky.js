@@ -121,3 +121,27 @@ function monthSVG(mondays) {
   });
   return { svg: `<svg class="monthsvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Constellations for the month">${s}</svg>`, lit, total, weeksDone, weeks: mondays.length, perfect, complete: total > 0 && lit === total };
 }
+
+// The weeks that belong to a month (ISO rule: the month that holds the week's Thursday).
+const monthWeeks = (year, m) => weeksOfYear(year).filter(mon => addDays(mon, 3).getMonth() === m);
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// One month card (header + constellations); `cur` outlines the current month.
+function skyCardHTML(year, m, i = 0, cur = false) {
+  const r = monthSVG(monthWeeks(year, m));
+  return { r, html: `<section class="skycard${cur ? ' cur' : ''}" style="--i:${i}">
+    <div class="mhead"><h3>${MONTH_NAMES[m]}</h3><span>${r.lit} of ${r.total} stars</span>${r.complete ? '<span class="mdone">complete</span>' : ''}</div>${r.svg}</section>` };
+}
+// Hover tooltips and click-through to the calendar for every star inside `root`.
+function attachSkyTips(root) {
+  let tip = document.getElementById('tip');
+  if (!tip) { tip = document.createElement('div'); tip.id = 'tip'; tip.setAttribute('role', 'tooltip'); document.body.appendChild(tip); }
+  const star = ev => ev.target.closest('.st');
+  root.addEventListener('mousemove', ev => {
+    const st = star(ev);
+    if (!st) { tip.classList.remove('on'); return; }
+    tip.textContent = st.dataset.tip; tip.classList.add('on');
+    tip.style.left = Math.min(ev.clientX + 14, innerWidth - tip.offsetWidth - 8) + 'px'; tip.style.top = (ev.clientY + 16) + 'px';
+  });
+  root.addEventListener('mouseleave', () => tip.classList.remove('on'));
+  root.addEventListener('click', ev => { const st = star(ev); if (st) location.href = `calendar.html#${st.dataset.k}`; });
+}

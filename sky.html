@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Stars · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=f8f8b142">
+<link rel="stylesheet" href="style.css?v=83238938">
 <script src="holidays.js?v=270cf135"></script>
-<script src="app.js?v=42306ad4"></script>
-<script src="sky.js?v=d31505f3"></script>
+<script src="app.js?v=84b31526"></script>
+<script src="sky.js?v=4e275a07"></script>
 </head>
 <body>
 <div id="nav"></div>
-<main>
+<main class="w-sky">
   <div class="monthbar">
     <h1 id="title"></h1>
     <button class="btn" id="prev" aria-label="Previous year">&larr;</button>
@@ -31,24 +31,19 @@
   </div>
   <p class="lede mt">Every week is a constellation with one star per working day. A star lights when you log the day, and a line joins it to the day before. Each month chains its weeks together. Click a star to open that day.</p>
 </main>
-<div id="tip" role="tooltip"></div>
 
 <script>
 renderNav('sky.html');
 const $ = id => document.getElementById(id);
 let year = new Date().getFullYear();
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
 function render() {
   $('title').textContent = `Star chart ${year}`;
-  const byMonth = Array.from({ length: 12 }, () => []);
-  weeksOfYear(year).forEach(mon => byMonth[addDays(mon, 3).getMonth()].push(mon));
   const t = { lit: 0, total: 0, perfect: 0, weeks: 0, months: 0 };
-  $('grid').innerHTML = byMonth.map((weeks, m) => {
-    const r = monthSVG(weeks);
+  const now = new Date();
+  $('grid').innerHTML = Array.from({ length: 12 }, (_, m) => {
+    const { r, html } = skyCardHTML(year, m, m, year === now.getFullYear() && m === now.getMonth());
     t.lit += r.lit; t.total += r.total; t.perfect += r.perfect; t.weeks += r.weeksDone; if (r.complete) t.months++;
-    return `<section class="skycard" style="--i:${m}">
-      <div class="mhead"><h3>${MONTHS[m]}</h3><span>${r.lit} of ${r.total} stars</span>${r.complete ? '<span class="mdone">complete</span>' : ''}</div>${r.svg}</section>`;
+    return html;
   }).join('');
   $('sum').innerHTML = `
     <div>Stars lit<b>${t.lit}</b></div>
@@ -56,18 +51,7 @@ function render() {
     <div>Weeks complete<b>${t.weeks}</b></div>
     <div>Months complete<b>${t.months}</b></div>`;
 }
-
-// hover/tap tooltip + click through to the day
-const tip = $('tip'), grid = $('grid');
-const star = ev => ev.target.closest('.st');
-grid.addEventListener('mousemove', ev => {
-  const s = star(ev);
-  if (!s) { tip.classList.remove('on'); return; }
-  tip.textContent = s.dataset.tip; tip.classList.add('on');
-  tip.style.left = Math.min(ev.clientX + 14, innerWidth - tip.offsetWidth - 8) + 'px'; tip.style.top = (ev.clientY + 16) + 'px';
-});
-grid.addEventListener('mouseleave', () => tip.classList.remove('on'));
-grid.addEventListener('click', ev => { const s = star(ev); if (s) location.href = `calendar.html#${s.dataset.k}`; });
+attachSkyTips($('grid'));
 
 $('prev').onclick = () => { year--; render(); };
 $('next').onclick = () => { year++; render(); };

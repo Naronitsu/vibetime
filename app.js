@@ -254,6 +254,8 @@ const fh = (h, sign = true) => {
   const s = H === 0 && M ? `${M}m` : `${H}h${M ? ' ' + pad(M) + 'm' : ''}`;
   return (neg ? '−' : (sign && a > 1e-9 ? '+' : '')) + s;
 };
+// like fh(), but with the h / m units set smaller (for big numbers). Output is HTML.
+const fhUnits = (h, sign = true) => fh(h, sign).replace(/(\d)(h|m)/g, '$1<span class="u">$2</span>');
 const cls = h => h > 1e-9 ? 'pos' : h < -1e-9 ? 'neg' : '';
 const toInput = h => h == null ? '' : fh(h, false);
 
