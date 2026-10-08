@@ -54,6 +54,7 @@ function starInfo(d) {
     if (d > today) info.kind = 'planned';
     else { info.kind = 'logged'; info.lit = true; info.perfect = exp > 0 && Math.abs(info.delta) <= 0.25; }
   } else if (hol && d <= today) { info.kind = 'holiday'; info.lit = true; info.color = 'h'; }
+  else if (hol) { info.kind = 'planned'; info.color = 'h'; info.holiday = true; }   // a coming holiday is booked time off, like PTO
   else if (d > today) info.kind = 'future';
   else if (+d === +today) info.kind = 'today';
   else if (k < state.settings.start) info.kind = 'before';
@@ -65,8 +66,8 @@ function starTip(i) {
   const bits = i.parts ? [['w', 'Worked'], ['pto', 'PTO'], ['sick', 'Sick']].filter(([key]) => i.parts[key] > 0).map(([key, n]) => `${n} ${fh(i.parts[key], false)}`) : [];
   switch (i.kind) {
     case 'logged': return `${label}: ${bits.length ? bits.join(', ') : '0h'} (${Math.abs(i.delta) < 1e-9 ? 'on target' : fh(i.delta)})`;
-    case 'planned': return `${label}: booked ${bits.join(', ')}`;
-    case 'holiday': return `${label}: ${i.hol}`;
+    case 'planned': return i.holiday ? `${label}: ${i.hol} (holiday, ${fh(state.settings.target, false)} off)` : `${label}: booked ${bits.join(', ')}`;
+    case 'holiday': return `${label}: ${i.hol} (holiday, ${fh(state.settings.target, false)} off)`;
     case 'today': return `${label}: today, not logged yet`;
     case 'missing': return `${label}: nothing logged`;
     case 'before': return `${label}: before tracking started`;
@@ -80,7 +81,7 @@ const f1 = n => Math.round(n * 10) / 10;
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 function starSVG(i, x, y, n) {
-  const col = i.kind === 'holiday' ? 'h' : i.color;
+  const col = i.kind === 'holiday' || i.holiday ? 'h' : i.color;
   const r = i.kind === 'logged' ? (i.delta > 0.25 ? 6 : i.delta < -0.25 ? 4.2 : 5) : 4;
   const cls = ['st', i.kind, 'c-' + col, i.perfect && 'perfect', i.delta > 0.25 && 'over'].filter(Boolean).join(' ');
   const cx = f1(x), cy = f1(y);

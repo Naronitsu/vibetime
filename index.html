@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=80e4fd9a">
+<link rel="stylesheet" href="style.css?v=b209e140">
 <script src="holidays.js?v=270cf135"></script>
-<script src="app.js?v=3391b4b0"></script>
-<script src="sky.js?v=5f491f8d"></script>
+<script src="app.js?v=5e7ba0e1"></script>
+<script src="tour.js?v=362b48f8"></script>
+<script src="sky.js?v=f93de382"></script>
 </head>
 <body>
 <div id="nav"></div>
@@ -21,6 +22,7 @@
       <p class="lede" id="lede"></p>
       <div class="wxline" id="wxline"></div>
       <span class="badge" id="qbadge"></span>
+      <button type="button" class="tourbtn" id="tourBtn">Show me around</button>
     </div>
     <svg class="scene" id="scene" data-wx="clear" viewBox="0 0 520 240" role="img" aria-label="Your progress through the quarter, climbing toward its last day">
       <g class="sungrp"><circle class="rays" cx="62" cy="42" r="28" fill="none" stroke-dasharray="3 8"/><circle class="sun stroke" cx="62" cy="42" r="19"/></g>
@@ -57,11 +59,11 @@
 
   <div class="grid2">
     <section class="panel">
-      <h2>Log the day</h2>
+      <div class="loghead"><h2>Log the day</h2><div class="timer" id="timer" role="group" aria-label="Work timer"></div></div>
       <label class="f" for="date">Day</label>
       <input class="inp" type="date" id="date">
       <div class="lab mt"><label class="f" for="hours">Worked</label><button type="button" class="fill" data-fill="hours">Fill rest</button></div>
-      <input class="inp big" id="hours" placeholder="e.g. 7h 45m" autocomplete="off">
+      <input class="inp big" id="hours" placeholder="7h 45m  or  8:00-12:00, 13:00-15:00" autocomplete="off">
       <div class="two mt">
         <div><div class="lab"><label class="f" for="ptoH">PTO</label><button type="button" class="fill" data-fill="ptoH">Fill rest</button></div><input class="inp" id="ptoH" placeholder="0h" autocomplete="off"></div>
         <div><div class="lab"><label class="f" for="sickH">Sick leave</label><button type="button" class="fill" data-fill="sickH">Fill rest</button></div><input class="inp" id="sickH" placeholder="0h" autocomplete="off"></div>
@@ -223,9 +225,9 @@ function updatePreview() {
     b.disabled = locked || exp === 0 || exp - others <= 0;
   });
   if (locked) { preview.innerHTML = 'Not a working day. Change your working days in Settings.'; return; }
-  if (Object.values(v).some(Number.isNaN)) { preview.innerHTML = '<span class="neg">Try 7h 45m, 7:45 or 7.75</span>'; return; }
+  if (Object.values(v).some(Number.isNaN)) { preview.innerHTML = '<span class="neg">Try 7h 45m, 7.75 or time slots like 8:00-12:00, 13:00-15:00</span>'; return; }
   const any = Object.values(v).some(x => x != null);
-  if (!any) { preview.textContent = hol ? `Public holiday: ${hol}. No hours expected.` : e ? '' : `Expected: ${fh(exp, false)}.`; return; }
+  if (!any) { preview.textContent = hol ? (isWorkday(d) ? `Public holiday: ${hol}. Counts as ${fh(state.settings.target, false)} of PTO, not taken from your pool.` : `Public holiday: ${hol}. No hours expected.`) : e ? '' : `Expected: ${fh(exp, false)}.`; return; }
   const tot = num(v.w) + (exp > 0 ? num(v.pto) + num(v.sick) : 0), dl = tot - exp;
   preview.innerHTML = `Total <b>${fh(tot, false)}</b>${exp ? ` of ${fh(exp, false)} expected` : ''}: <b class="${cls(dl)}">${Math.abs(dl) < 1e-9 ? 'on target' : fh(dl)}</b>`;
 }
@@ -354,12 +356,13 @@ function renderLeaves() {
 }
 function renderHolidays() {
   if (!state.settings.country) {
-    $('holidays').innerHTML = `<li class="empty" style="display:block">Pick your country to see its public holidays here. They count as days off, so no hours are expected on them.<br><a href="settings.html">Choose your country &rarr;</a></li>`;
+    $('holidays').innerHTML = `<li class="empty" style="display:block">Pick your country to see its public holidays here. On working days they count as PTO (not taken from your allowance), so no hours are expected.<br><a href="settings.html">Choose your country &rarr;</a></li>`;
     return;
   }
   const up = upcomingHolidays(4);
   $('holidays').innerHTML = up.map(h => `<li><span class="d">${h.name}</span><span class="tab" style="color:var(--muted)">${h.date.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})}</span></li>`).join('');
 }
+document.getElementById('tourBtn').onclick = () => startTour();
 const refresh = () => { renderStats(); renderLeaves(); renderMissing(); renderHolidays(); loadDay(); };
 const flash = msg => { preview.innerHTML = `<b class="pos">${msg}</b>`; };
 
@@ -388,6 +391,55 @@ $('missing').onclick = ev => {
   else if (b.dataset.a === 'sick') { setEntry(k, { sick: T }); refresh(); }
   else { dateEl.value = k; loadDay(); hoursEl.focus(); }
 };
+
+// ---- timer: play / pause (break) / stop (adds the time to today's worked hours). Kept in localStorage, so it survives reloads and page changes.
+const TIMER_KEY = 'vibetime.timer';
+const readTimer = () => { try { const t = JSON.parse(localStorage.getItem(TIMER_KEY)); return t && t.mode ? t : null; } catch { return null; } };
+const writeTimer = t => { try { t ? localStorage.setItem(TIMER_KEY, JSON.stringify(t)) : localStorage.removeItem(TIMER_KEY); } catch {} };
+const timerMs = t => t ? t.acc + (t.mode === 'run' ? Date.now() - t.since : 0) : 0;
+const clock = ms => { const s = Math.floor(ms / 1000); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`; };
+const TI = {
+  play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13M16 5.5v13"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>',
+};
+let timerNote = '';
+function renderTimer() {
+  const t = readTimer(), box = $('timer');
+  const btn = (a, ic, label, extra = '') => `<button type="button" class="tbtn ${extra}" data-t="${a}" title="${label}" aria-label="${label}">${TI[ic]}</button>`;
+  if (!t) { box.innerHTML = (timerNote ? `<span class="tnote" role="status">${timerNote}</span>` : '') + btn('start', 'play', 'Start the timer', 'play'); document.title = 'Today · VibeTime'; return; }
+  box.innerHTML = `<span class="tclock tab ${t.mode === 'run' ? 'live' : 'paused'}" role="timer" aria-label="${t.mode === 'run' ? 'Timer running' : 'Timer paused'}">${clock(timerMs(t))}</span>`
+    + (t.mode === 'run' ? btn('pause', 'pause', 'Pause for a break') : btn('resume', 'play', 'Continue', 'play'))
+    + btn('stop', 'stop', 'Stop and log the time', 'stop');
+  document.title = `${t.mode === 'run' ? '▶' : '⏸'} ${clock(timerMs(t))} · VibeTime`;
+}
+function tickTimer() {
+  const t = readTimer(), c = $('timer').querySelector('.tclock');
+  if (t && c) { c.textContent = clock(timerMs(t)); document.title = `${t.mode === 'run' ? '▶' : '⏸'} ${c.textContent} · VibeTime`; }
+}
+$('timer').onclick = ev => {
+  const b = ev.target.closest('[data-t]'); if (!b) return;
+  const t = readTimer(), now = Date.now();
+  timerNote = '';
+  if (b.dataset.t === 'start') writeTimer({ mode: 'run', since: now, acc: 0 });
+  else if (b.dataset.t === 'pause') writeTimer({ mode: 'pause', since: now, acc: timerMs(t) });
+  else if (b.dataset.t === 'resume') writeTimer({ mode: 'run', since: now, acc: t.acc });
+  else if (b.dataset.t === 'stop') {
+    const hrs = Math.round(timerMs(t) / 60000) / 60;
+    if (hrs > 16 && !confirm(`The timer ran for ${fh(hrs, false)}. Log all of it to today?`)) return;
+    writeTimer(null);
+    if (hrs <= 0) timerNote = 'Under a minute, nothing logged';
+    else {
+      const today = fmt(new Date()), e = state.days[today] || {};
+      setEntry(today, { ...e, w: (e.w || 0) + hrs });
+      dateEl.value = today; refresh(); flash(`Logged ${fh(hrs, false)} from the timer`);
+    }
+  }
+  renderTimer();
+};
+setInterval(tickTimer, 1000);
+window.addEventListener('storage', ev => { if (ev.key === TIMER_KEY) renderTimer(); });
+renderTimer();
 
 window.addEventListener('holidays-updated', () => { renderStats(); renderLeaves(); renderMissing(); renderHolidays(); updatePreview(); });
 refresh();

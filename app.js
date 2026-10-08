@@ -100,6 +100,11 @@ try {
     state = defaults();
   }
 } catch { state = defaults(); }
+// First visit: no saved data and the intro hasn't been seen, so go to the welcome page.
+const WELCOME_KEY = 'vibetime.welcomed';
+try {
+  if (!localStorage.getItem(KEY) && !localStorage.getItem(WELCOME_KEY) && !/welcome\.html$/.test(location.pathname)) location.replace('welcome.html');
+} catch {}
 const save = () => { state.version = SCHEMA; try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
 
 // Backup file contents, and a safety copy of the current data taken before any import or erase.
@@ -266,9 +271,31 @@ const fhUnits = (h, sign = true) => fh(h, sign).replace(/(\d)(h|m)/g, '$1<span c
 const cls = h => h > 1e-9 ? 'pos' : h < -1e-9 ? 'neg' : '';
 const toInput = h => h == null ? '' : fh(h, false);
 
-// Accepts "7h 45m", "7h45", "7 hours 45 min", "45m", "7:45", "7.75", "7,5". Returns null if empty, NaN if invalid.
+// Time slots: "8:00-12:00, 13:00-15:00" (also "9am - 5pm", "8-12", "22:00-02:00"). Returns the total hours, or NaN.
+const SLOT = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:-|–|—|to)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/;
+function parseSlots(v) {
+  let mins = 0;
+  for (const part of v.split(/[,;\n+&]|\band\b/)) {
+    const m = part.trim().match(SLOT); if (!m) return NaN;
+    const at = (h, mi, ap) => {
+      h = Number(h); mi = Number(mi || 0);
+      if (mi > 59 || h > 24 || (ap && (h < 1 || h > 12))) return NaN;
+      if (ap) h = h % 12 + (ap === 'pm' ? 12 : 0);
+      return h * 60 + mi;
+    };
+    const a = at(m[1], m[2], m[3]), b = at(m[4], m[5], m[6]);
+    if (Number.isNaN(a) || Number.isNaN(b) || a === b) return NaN;
+    mins += b > a ? b - a : b + 1440 - a;       // an end before the start means past midnight
+  }
+  return mins / 60;
+}
+
+// Accepts "7h 45m", "7h45", "7 hours 45 min", "45m", "7:45", "7.75", "7,5", or time slots like "8:00-12:00, 13:00-15:00".
+// Returns null if empty, NaN if invalid.
 function parseHours(v) {
-  v = v.trim().toLowerCase().replace(',', '.');
+  v = v.trim().toLowerCase();
+  if (/\d\s*(?:am|pm)?\s*(?:-|–|—|to)\s*\d/.test(v)) return parseSlots(v);
+  v = v.replace(',', '.');
   if (!v) return null;
   if (/^\d+:\d{1,2}$/.test(v)) { const [h, m] = v.split(':').map(Number); return h + m/60; }
   if (/^\d*\.?\d+$/.test(v)) return Number(v);

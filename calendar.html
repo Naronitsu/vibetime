@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Calendar · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=80e4fd9a">
+<link rel="stylesheet" href="style.css?v=b209e140">
 <script src="holidays.js?v=270cf135"></script>
-<script src="app.js?v=3391b4b0"></script>
+<script src="app.js?v=5e7ba0e1"></script>
 </head>
 <body>
 <div id="nav"></div>
@@ -88,12 +88,14 @@ function renderCal(dir = 0) {
     if (e && !rows.length) rows = [PARTS[0]];
     const scale = Math.max(exp, tot) || 1;
     const meter = e ? `<div class="meter stack">${PARTS.map(([key, , c]) => (e[key] || 0) > 0 && (key === 'w' || exp > 0) ? `<i class="${c}" style="width:${e[key] / scale * 100}%"></i>` : '').join('')}</div>` : '';
+    const holPto = hol && wk && inRange ? state.settings.target : 0;   // acts like a PTO day, but isn't taken from the PTO pool
     if ((e && inRange) || (missing && exp > 0)) { wkT += tot; wkD += dl; wkAny = true; }
+    if (holPto) { wkT += holPto; wkAny = true; }
     const classes = ['day', !wk && 'off', k === todayS && 'today', hol && 'holiday'].filter(Boolean).join(' ');
     html += `<button type="button" class="${classes}" data-k="${k}" style="--i:${idx}" ${locked ? 'disabled' : ''} aria-label="${d.toDateString()}">
       <span class="top"><span class="num">${n}</span>${missing ? '<i class="miss" title="Nothing logged"></i>' : ''}</span>
       ${hol ? `<span class="hn" title="${hol}">${hol}</span>` : (locked ? '<span class="hn off">Day off</span>' : '')}
-      <span class="rows">${rows.length ? rows.map(([key, name]) => `<span class="r ${key}"><span class="lbl">${name}</span><b>${fh(e[key] || 0, false)}</b></span>`).join('') : (locked ? '' : '<span class="addhint">+ Add time</span>')}</span>
+      <span class="rows">${rows.length ? rows.map(([key, name]) => `<span class="r ${key}"><span class="lbl">${name}</span><b>${fh(e[key] || 0, false)}</b></span>`).join('') : (locked || holPto ? '' : '<span class="addhint">+ Add time</span>')}${holPto ? `<span class="r pto"><span class="lbl">Holiday PTO</span><b>${fh(holPto, false)}</b></span>` : ''}</span>
       <span class="foot">${meter}${dtxt ? `<span class="d ${cls(dl || 0)}">${dtxt}</span>` : ''}</span>
     </button>`;
     if (++col === 7 || n === last) {

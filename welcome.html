@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Welcome · VibeTime</title>
+<link rel="stylesheet" href="style.css?v=b209e140">
+<script src="holidays.js?v=270cf135"></script>
+<script src="app.js?v=5e7ba0e1"></script>
+</head>
+<body class="bare">
+<main class="welcome">
+  <header class="whead">
+    <span class="wbrand" id="brand"></span>
+    <h1>Welcome to VibeTime</h1>
+    <p class="lede" id="wlede">Track your flexible hours, keep your balance inside the monthly limit, and land on zero at every quarter end.</p>
+  </header>
+
+  <div class="steps" id="dots" aria-hidden="true"></div>
+
+  <!-- 0: choose -->
+  <section class="panel wstep" data-step="0">
+    <h2>How do you want to start?</h2>
+    <div class="choices">
+      <button class="choice primary" id="goSetup" type="button"><b>Set up VibeTime</b><span>Answer a few quick questions. Takes about a minute.</span></button>
+      <button class="choice" id="goImport" type="button"><b>Import a backup</b><span>Already use VibeTime? Restore your settings and logged days from a backup file.</span></button>
+      <input type="file" id="file" accept="application/json,.json" hidden>
+    </div>
+    <p class="dsub" id="importMsg" role="status"></p>
+    <p class="dsub">Everything stays in this browser. Nothing is sent anywhere.</p>
+  </section>
+
+  <!-- 1: work week -->
+  <section class="panel wstep" data-step="1" hidden>
+    <h2>Your work week</h2>
+    <div class="fields">
+      <div class="field"><span class="t"><b>Working days</b><span>Other days are locked and expect no hours.</span></span><div class="daypick" id="daypick"></div></div>
+      <label class="field"><span class="t"><b>Hours per workday</b><span>Expected on each working day, e.g. 8h or 7h 30m.</span></span><input class="inp" id="sTarget" value="8h" autocomplete="off"></label>
+      <label class="field"><span class="t"><b>Country</b><span>Optional. Adds your public holidays, which count as time off.</span></span><select class="inp" id="sCountry"><option value="">None</option></select></label>
+      <label class="field" id="regionRow" hidden><span class="t"><b>Region</b><span>Optional. Adds holidays that only apply in one part of the country.</span></span><select class="inp" id="sRegion"></select></label>
+    </div>
+    <p class="preview" id="week"></p>
+    <div class="wact"><button class="btn" type="button" data-go="0">Back</button><span class="sp"></span><button class="btn primary" type="button" id="next1">Next</button></div>
+  </section>
+
+  <!-- 2: allowances -->
+  <section class="panel wstep" data-step="2" hidden>
+    <h2>Time off</h2>
+    <p class="dsub">How much paid time off and sick leave do you get per year? You can change this any time in Settings.</p>
+    <div class="fields">
+      <label class="field"><span class="t"><b>PTO per year</b><span>e.g. 192h or 24 days &times; 8h.</span></span><input class="inp" id="sPto" placeholder="e.g. 192h" autocomplete="off"></label>
+      <label class="field"><span class="t"><b>Sick leave per year</b><span>e.g. 80h.</span></span><input class="inp" id="sSick" placeholder="e.g. 80h" autocomplete="off"></label>
+    </div>
+    <p class="preview" id="allowMsg"></p>
+    <div class="wact"><button class="btn" type="button" data-go="1">Back</button><span class="sp"></span><button class="btn" type="button" id="skip2">Skip for now</button><button class="btn primary" type="button" id="next2">Next</button></div>
+  </section>
+
+  <!-- 3: guide -->
+  <section class="panel wstep" data-step="3" hidden>
+    <h2 id="guideTitle">A quick tour</h2>
+    <div class="guide">
+      <div class="gcard"><i>1</i><div><b>Log your day</b><p>On <em>Today</em>, type hours like <code>7h 45m</code> or <code>7.75</code>, or enter time slots like <code>8:00-12:00, 13:00-15:00</code> and VibeTime adds them up. PTO and sick leave can share a day with worked time. <em>Fill rest</em> tops a day up to full.</p></div></div>
+      <div class="gcard"><i>2</i><div><b>Or use the timer</b><p>Press the play button next to <em>Log the day</em>. Pause for breaks, press play to carry on, and stop to add the time to today.</p></div></div>
+      <div class="gcard"><i>3</i><div><b>Watch your balance</b><p>Your balance is the plus or minus against your target. The weather shows how close you are to the monthly limit, and the trail shows the quarter, where you should be back at zero. Past working days with nothing logged count as 0h until you fill them in.</p></div></div>
+      <div class="gcard"><i>4</i><div><b>Collect stars</b><p>Every week is a constellation with one star per working day. Log a day and its star lights up. The <em>Stars</em> page shows your whole year.</p></div></div>
+      <div class="gcard"><i>5</i><div><b>Calendar, leave and holidays</b><p>Click any day in the <em>Calendar</em> to edit it. Click the PTO or Sick bottle on Today to book dates. Pick your country in <em>Settings</em> to get public holidays, and export a backup there every so often.</p></div></div>
+    </div>
+    <div class="wact" id="guideAct"><button class="btn" type="button" data-go="2" id="guideBack">Back</button><span class="sp"></span><button class="btn primary" type="button" id="finish">Start tracking</button></div>
+  </section>
+</main>
+
+<script>
+document.getElementById('brand').innerHTML = BRAND;
+const $ = id => document.getElementById(id);
+const returning = (() => { try { return !!localStorage.getItem(KEY); } catch { return false; } })();
+const draft = defaults();            // nothing is saved until the end, so leaving halfway starts the welcome again
+let step = 0;
+
+function show(n) {
+  step = n;
+  document.querySelectorAll('.wstep').forEach(s => { s.hidden = +s.dataset.step !== n; });
+  $('dots').innerHTML = n === 0 || returning ? '' : [1, 2, 3].map(i => `<i class="${i < n ? 'done' : i === n ? 'on' : ''}"></i>`).join('');
+  window.scrollTo(0, 0);
+  const f = document.querySelector(`[data-step="${n}"] input:not([type=file]):not([type=checkbox]), [data-step="${n}"] .choice.primary`);
+  if (f) f.focus({ preventScroll: true });
+}
+document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => show(+b.dataset.go));
+
+// ---- import a backup
+$('goImport').onclick = () => $('file').click();
+$('file').onchange = async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  const msg = (t, bad) => { $('importMsg').innerHTML = `<span class="${bad ? 'neg' : 'pos'}">${t}</span>`; };
+  let raw, res;
+  try {
+    try { raw = JSON.parse(await file.text()); } catch { throw new Error("That file isn't valid JSON, so it can't be a VibeTime backup."); }
+    res = migrateState(raw);
+  } catch (err) { msg(err.message, true); return; }
+  const n = Object.keys(res.data.days).length;
+  state = res.data; save();
+  try { localStorage.setItem(WELCOME_KEY, '1'); } catch {}
+  msg(`Restored ${n} logged day${n === 1 ? '' : 's'} and your settings. Opening Today&hellip;`);
+  setTimeout(() => { location.href = 'index.html'; }, 900);
+};
+
+// ---- work week
+const dayPick = $('daypick');
+dayPick.innerHTML = [[1,'Mon'],[2,'Tue'],[3,'Wed'],[4,'Thu'],[5,'Fri'],[6,'Sat'],[0,'Sun']].map(([n, t]) =>
+  `<label><input type="checkbox" value="${n}" ${draft.settings.workDays.includes(n) ? 'checked' : ''}><span>${t}</span></label>`).join('');
+function readWeek() {
+  const days = [...dayPick.querySelectorAll('input:checked')].map(i => Number(i.value));
+  const h = parseHours($('sTarget').value);
+  return { days, h };
+}
+function updateWeek() {
+  const { days, h } = readWeek(), ok = days.length && h > 0 && h <= 24;
+  $('sTarget').classList.toggle('invalid', !(h > 0 && h <= 24));
+  $('week').innerHTML = ok ? `That is <b>${fh(days.length * h, false)}</b> a week over ${days.length} day${days.length === 1 ? '' : 's'}.`
+    : `<span class="neg">${!days.length ? 'Pick at least one working day.' : 'Try 8h, 7h 30m or 7.5.'}</span>`;
+  $('next1').disabled = !ok;
+}
+dayPick.addEventListener('change', updateWeek);
+$('sTarget').addEventListener('input', updateWeek);
+$('sTarget').addEventListener('keydown', e => { if (e.key === 'Enter' && !$('next1').disabled) $('next1').click(); });
+// ---- country + region (same lists as Settings; holidays load from the internet for countries other than Malta)
+const countrySel = $('sCountry'), regionSel = $('sRegion'), YEAR = new Date().getFullYear();
+function fillRegions() {
+  const cc = countrySel.value, regs = cc ? regionsFor(cc, YEAR) : [];
+  $('regionRow').hidden = !regs.length;
+  regionSel.innerHTML = '<option value="">Whole country only</option>' + regs.map(x => `<option value="${x}">${regionLabel(x)}</option>`).join('');
+  regionSel.value = regs.includes(regionSel.dataset.want) ? regionSel.dataset.want : '';
+}
+loadCountryList().then(list => {
+  const keep = countrySel.value;
+  countrySel.innerHTML = '<option value="">None</option>' + list.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+  countrySel.value = keep;
+});
+countrySel.onchange = () => { regionSel.dataset.want = ''; prefetchHolidays(countrySel.value); fillRegions(); };
+regionSel.onchange = () => { regionSel.dataset.want = regionSel.value; };
+window.addEventListener('holidays-updated', () => { regionSel.dataset.want = regionSel.value || regionSel.dataset.want || ''; fillRegions(); });
+
+$('goSetup').onclick = () => { show(1); updateWeek(); };
+$('next1').onclick = () => {
+  const { days, h } = readWeek();
+  draft.settings.workDays = days; draft.settings.target = h;
+  draft.settings.country = countrySel.value; draft.settings.region = countrySel.value ? regionSel.value : '';
+  show(2);
+};
+
+// ---- allowances
+function readAllowance() {
+  const p = parseHours($('sPto').value), s = parseHours($('sSick').value);
+  $('sPto').classList.toggle('invalid', Number.isNaN(p)); $('sSick').classList.toggle('invalid', Number.isNaN(s));
+  $('allowMsg').innerHTML = Number.isNaN(p) || Number.isNaN(s) ? '<span class="neg">Try 192h, 24h 30m or 80.</span>' : '';
+  $('next2').disabled = Number.isNaN(p) || Number.isNaN(s);
+  return { p, s };
+}
+$('sPto').addEventListener('input', readAllowance); $('sSick').addEventListener('input', readAllowance);
+$('next2').onclick = () => { const { p, s } = readAllowance(); draft.settings.ptoTotal = p || 0; draft.settings.sickTotal = s || 0; show(3); };
+$('skip2').onclick = () => show(3);
+
+// ---- guide + finish
+$('finish').onclick = () => {
+  if (!returning) { state = draft; save(); try { localStorage.setItem(WELCOME_KEY, '1'); localStorage.setItem('vibetime.tour', 'pending'); } catch {} }
+  location.href = 'index.html';
+};
+
+if (returning) {                      // opened again from Settings: just the tour, nothing is changed
+  $('wlede').textContent = 'A quick reminder of how everything works.';
+  $('guideBack').remove();
+  $('finish').textContent = 'Back to Today';
+  show(3);
+} else show(0);
+</script>
+</body>
+</html>
