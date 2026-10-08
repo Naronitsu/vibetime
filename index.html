@@ -4,10 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=f2bd5931">
+<link rel="stylesheet" href="style.css?v=d79c7c25">
 <script src="holidays.js?v=270cf135"></script>
-<script src="app.js?v=3b85fa6d"></script>
+<script src="app.js?v=311d946e"></script>
 <script src="sync.js?v=1bd22167"></script>
+<script src="timer.js?v=f0563fcf"></script>
+<script src="camp.js?v=04d2d5bf"></script>
 <script src="tour.js?v=362b48f8"></script>
 <script src="sky.js?v=f93de382"></script>
 </head>
@@ -61,6 +63,8 @@
   <div class="grid2">
     <section class="panel">
       <div class="loghead"><h2>Log the day</h2><div class="timer" id="timer" role="group" aria-label="Work timer"></div></div>
+      <div class="camp" id="camp" data-s="view" data-wx="clear"></div>
+
       <label class="f" for="date">Day</label>
       <input class="inp" type="date" id="date">
       <div class="lab mt"><label class="f" for="hours">Worked</label><button type="button" class="fill" data-fill="hours">Fill rest</button></div>
@@ -188,6 +192,7 @@ function renderStats() {
       <div class="ends tab"><span>−${limitMin}h</span><span>+${limitMax}h</span></div>
       <div style="margin-top:10px"><span class="badge ${s.within ? 'ok' : 'bad'}">${s.within ? 'Within limit' : 'Outside limit'}</span></div>
     </div>${weekCard()}`;
+  renderCamp();
 }
 
 function renderMissing() {
@@ -393,53 +398,35 @@ $('missing').onclick = ev => {
   else { dateEl.value = k; loadDay(); hoursEl.focus(); }
 };
 
-// ---- timer: play / pause (break) / stop (adds the time to today's worked hours). Kept in localStorage, so it survives reloads and page changes.
-const TIMER_KEY = 'vibetime.timer';
-const readTimer = () => { try { const t = JSON.parse(localStorage.getItem(TIMER_KEY)); return t && t.mode ? t : null; } catch { return null; } };
-const writeTimer = t => { try { t ? localStorage.setItem(TIMER_KEY, JSON.stringify(t)) : localStorage.removeItem(TIMER_KEY); } catch {} };
-const timerMs = t => t ? t.acc + (t.mode === 'run' ? Date.now() - t.since : 0) : 0;
-const clock = ms => { const s = Math.floor(ms / 1000); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`; };
-const TI = {
-  play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>',
-  pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13M16 5.5v13"/></svg>',
-  stop: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>',
-};
+// ---- timer UI (the timer itself lives in timer.js, and the camp scene in camp.js, so other pages can use them too)
 let timerNote = '';
+const camp = mountCamp($('camp'), { caption: true });
+const renderCamp = (light = false) => camp.update(light);
 function renderTimer() {
+  renderCamp();
   const t = readTimer(), box = $('timer');
   const btn = (a, ic, label, extra = '') => `<button type="button" class="tbtn ${extra}" data-t="${a}" title="${label}" aria-label="${label}">${TI[ic]}</button>`;
-  if (!t) { box.innerHTML = (timerNote ? `<span class="tnote" role="status">${timerNote}</span>` : '') + btn('start', 'play', 'Start the timer', 'play'); document.title = 'Today · VibeTime'; return; }
+  if (!t) { box.innerHTML = (timerNote ? `<span class="tnote" role="status">${timerNote}</span>` : '') + btn('start', 'play', 'Start the timer', 'play'); document.title = 'Today \u00b7 VibeTime'; return; }
   box.innerHTML = `<span class="tclock tab ${t.mode === 'run' ? 'live' : 'paused'}" role="timer" aria-label="${t.mode === 'run' ? 'Timer running' : 'Timer paused'}">${clock(timerMs(t))}</span>`
     + (t.mode === 'run' ? btn('pause', 'pause', 'Pause for a break') : btn('resume', 'play', 'Continue', 'play'))
     + btn('stop', 'stop', 'Stop and log the time', 'stop');
-  document.title = `${t.mode === 'run' ? '▶' : '⏸'} ${clock(timerMs(t))} · VibeTime`;
+  document.title = `${t.mode === 'run' ? '\u25B6' : '\u23F8'} ${clock(timerMs(t))} \u00b7 VibeTime`;
 }
 function tickTimer() {
   const t = readTimer(), c = $('timer').querySelector('.tclock');
-  if (t && c) { c.textContent = clock(timerMs(t)); document.title = `${t.mode === 'run' ? '▶' : '⏸'} ${c.textContent} · VibeTime`; }
+  if (t) renderCamp(true);
+  if (t && c) { c.textContent = clock(timerMs(t)); document.title = `${t.mode === 'run' ? '\u25B6' : '\u23F8'} ${c.textContent} \u00b7 VibeTime`; }
 }
 $('timer').onclick = ev => {
   const b = ev.target.closest('[data-t]'); if (!b) return;
-  const t = readTimer(), now = Date.now();
-  timerNote = '';
-  if (b.dataset.t === 'start') writeTimer({ mode: 'run', since: now, acc: 0 });
-  else if (b.dataset.t === 'pause') writeTimer({ mode: 'pause', since: now, acc: timerMs(t) });
-  else if (b.dataset.t === 'resume') writeTimer({ mode: 'run', since: now, acc: t.acc });
-  else if (b.dataset.t === 'stop') {
-    const hrs = Math.round(timerMs(t) / 60000) / 60;
-    if (hrs > 16 && !confirm(`The timer ran for ${fh(hrs, false)}. Log all of it to today?`)) return;
-    writeTimer(null);
-    if (hrs <= 0) timerNote = 'Under a minute, nothing logged';
-    else {
-      const today = fmt(new Date()), e = state.days[today] || {};
-      setEntry(today, { ...e, w: (e.w || 0) + hrs });
-      dateEl.value = today; refresh(); flash(`Logged ${fh(hrs, false)} from the timer`);
-    }
-  }
+  const r = timerAct(b.dataset.t);
+  if (r.cancelled) return;
+  timerNote = r.note;
+  if (r.logged) { dateEl.value = fmt(new Date()); refresh(); flash(`Logged ${fh(r.logged, false)} from the timer`); }
   renderTimer();
 };
 setInterval(tickTimer, 1000);
-window.addEventListener('storage', ev => { if (ev.key === TIMER_KEY) renderTimer(); });
+window.addEventListener('storage', ev => { if (ev.key === TIMER_KEY || ev.key === PUNCH_KEY) renderTimer(); });
 renderTimer();
 
 window.addEventListener('holidays-updated', () => { renderStats(); renderLeaves(); renderMissing(); renderHolidays(); updatePreview(); });

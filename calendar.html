@@ -4,10 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Calendar · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=f2bd5931">
+<link rel="stylesheet" href="style.css?v=d79c7c25">
 <script src="holidays.js?v=270cf135"></script>
-<script src="app.js?v=3b85fa6d"></script>
+<script src="app.js?v=311d946e"></script>
 <script src="sync.js?v=1bd22167"></script>
+<script src="timer.js?v=f0563fcf"></script>
+<script src="camp.js?v=04d2d5bf"></script>
+<script src="minibar.js?v=a69cbd78"></script>
 </head>
 <body>
 <div id="nav"></div>
@@ -19,6 +22,7 @@
     <button class="btn" id="next" aria-label="Next month">&rarr;</button>
   </div>
   <div class="msum" id="msum"></div>
+  <div class="msum msplit" id="msplit"></div>
   <div class="cal" id="cal"></div>
   <div class="legend">
     <span><i class="wrk"></i>Worked</span>
@@ -58,10 +62,14 @@ function renderSummary() {
   const y = view.getFullYear(), m = view.getMonth();
   const md = monthDelta(y, m), end = balanceThrough(monthEnd(view)), { limitMax, limitMin } = state.settings;
   const ok = end <= limitMax + 1e-9 && end >= -limitMin - 1e-9;
+  const mt = monthTotals(y, m);
   $('msum').innerHTML = `
-    <div>This month<b class="${cls(md)}">${fh(md)}</b></div>
+    <div>Logged this month<b class="tab">${fh(mt.total, false)}<span class="of"> / ${fh(mt.expected, false)}</span></b></div>
+    <div>Balance change<b class="${cls(md)}">${fh(md)}</b></div>
     <div>Balance at month end<b class="${cls(end)}">${fh(end)}</b></div>
-    <div>Monthly limit<b class="${ok ? 'pos' : 'neg'}">${ok ? 'Within' : 'Outside'}</b></div>`;
+    <div>Limit check<b class="${ok ? 'pos' : 'neg'}">${ok ? 'Within limit' : 'Outside limit'}</b></div>`;
+  const part = (c, name, h) => `<div><i class="sdot" style="background:${c}"></i>${name}<b class="tab">${fh(h, false)}</b></div>`;
+  $('msplit').innerHTML = part('var(--sky)', 'Worked', mt.w) + part('var(--ok)', 'PTO', mt.pto) + part('var(--sick)', 'Sick leave', mt.sick);
 }
 
 const PARTS = [['w', 'Worked', 'w'], ['pto', 'PTO', 'p'], ['sick', 'Sick', 's']];
@@ -97,6 +105,7 @@ function renderCal(dir = 0) {
       <span class="top"><span class="num">${n}</span>${missing ? '<i class="miss" title="Nothing logged"></i>' : ''}</span>
       ${hol ? `<span class="hn" title="${hol}">${hol}</span>` : (locked ? '<span class="hn off">Day off</span>' : '')}
       <span class="rows">${rows.length ? rows.map(([key, name]) => `<span class="r ${key}"><span class="lbl">${name}</span><b>${fh(e[key] || 0, false)}</b></span>`).join('') : (locked || holPto ? '' : '<span class="addhint">+ Add time</span>')}${holPto ? `<span class="r pto"><span class="lbl">Holiday PTO</span><b>${fh(holPto, false)}</b></span>` : ''}</span>
+      <span class="mtot">${tot + holPto > 0 ? fh(tot + holPto, false) : ''}</span>
       <span class="foot">${meter}${dtxt ? `<span class="d ${cls(dl || 0)}">${dtxt}</span>` : ''}</span>
     </button>`;
     if (++col === 7 || n === last) {

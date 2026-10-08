@@ -246,6 +246,20 @@ function monthDelta(y, m) {
   for (let d = new Date(y, m, 1); d.getMonth() === m; d.setDate(d.getDate() + 1)) if (d >= start) s += dayDelta(d, today);
   return s;
 }
+// Hours for one month, counting only days from the tracking start: how many are expected, and how many are credited,
+// split by kind. A public holiday on a working day counts as a day of PTO (credited and expected) without using up the allowance.
+function monthTotals(y, m) {
+  const start = parseDate(state.settings.start), out = { expected: 0, w: 0, pto: 0, sick: 0 };
+  for (const d = new Date(y, m, 1); d.getMonth() === m; d.setDate(d.getDate() + 1)) {
+    if (d < start) continue;
+    const e = state.days[fmt(d)] || {}, exp = expectedFor(d);
+    out.expected += exp; out.w += e.w || 0;
+    if (exp > 0) { out.pto += e.pto || 0; out.sick += e.sick || 0; }
+    else if (isWorkday(d) && holidayName(d)) { out.pto += state.settings.target; out.expected += state.settings.target; }
+  }
+  out.total = out.w + out.pto + out.sick;
+  return out;
+}
 const quarterEnd = d => new Date(d.getFullYear(), Math.floor(d.getMonth()/3)*3 + 3, 0);
 const monthEnd = d => new Date(d.getFullYear(), d.getMonth()+1, 0);
 

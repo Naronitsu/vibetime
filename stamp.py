@@ -7,7 +7,7 @@ Runs automatically before each commit (see .git/hooks/pre-commit); you can also 
 import hashlib, pathlib, re
 
 root = pathlib.Path(__file__).parent
-assets = ['app.js', 'holidays.js', 'sky.js', 'tour.js', 'sync.js', 'style.css']
+assets = ['app.js', 'holidays.js', 'sky.js', 'tour.js', 'sync.js', 'timer.js', 'camp.js', 'minibar.js', 'style.css']
 ver = {a: hashlib.md5((root / a).read_bytes().replace(b'\r\n', b'\n')).hexdigest()[:8] for a in assets}
 
 changed = []
