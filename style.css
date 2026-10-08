@@ -441,3 +441,5 @@ dialog[open]::backdrop { animation:fade .2s ease; }
   .panel { padding:14px 16px; border-radius:16px; box-shadow:4px 4px 0 var(--shadow); }
   .dfield { grid-template-columns:1fr auto; }
 }
+.msum.grid2x2 { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); max-width:560px; }
+.msum.grid2x2 > div { min-width:0; }
