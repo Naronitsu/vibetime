@@ -12,7 +12,7 @@
 //   3. Credentials > Create credentials > OAuth client ID > Web application > Authorized JavaScript origins:
 //        https://naronitsu.github.io      (and http://localhost:8765 to test locally)
 //   4. Copy the Client ID below. It is not a secret.
-const GOOGLE_CLIENT_ID = '';
+const GOOGLE_CLIENT_ID = '434753019077-ttr70tcnd8lpa1rc8r6r9jgbjlik0p00.apps.googleusercontent.com';
 
 const SYNC_KEY = 'vibetime.sync', SYNC_FILE = 'vibetime.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
