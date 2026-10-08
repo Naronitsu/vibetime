@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=d79c7c25">
+<link rel="stylesheet" href="style.css?v=ae7d9743">
 <script src="holidays.js?v=270cf135"></script>
 <script src="app.js?v=311d946e"></script>
 <script src="sync.js?v=1bd22167"></script>
 <script src="timer.js?v=f0563fcf"></script>
 <script src="camp.js?v=04d2d5bf"></script>
-<script src="tour.js?v=362b48f8"></script>
+<script src="tour.js?v=bfc2b015"></script>
 <script src="sky.js?v=f93de382"></script>
 </head>
 <body>
@@ -56,30 +56,31 @@
     </svg>
   </section>
 
+  <div class="today-top">
+      <section class="panel">
+        <div class="loghead"><h2>Log the day</h2><div class="timer" id="timer" role="group" aria-label="Work timer"></div></div>
+        <div class="camp" id="camp" data-s="view" data-wx="clear"></div>
+
+        <label class="f" for="date">Day</label>
+        <input class="inp" type="date" id="date">
+        <div class="lab mt"><label class="f" for="hours">Worked</label><button type="button" class="fill" data-fill="hours">Fill rest</button></div>
+        <input class="inp big" id="hours" placeholder="7h 45m  or  8:00-12:00, 13:00-15:00" autocomplete="off">
+        <div class="two mt">
+          <div><div class="lab"><label class="f" for="ptoH">PTO</label><button type="button" class="fill" data-fill="ptoH">Fill rest</button></div><input class="inp" id="ptoH" placeholder="0h" autocomplete="off"></div>
+          <div><div class="lab"><label class="f" for="sickH">Sick leave</label><button type="button" class="fill" data-fill="sickH">Fill rest</button></div><input class="inp" id="sickH" placeholder="0h" autocomplete="off"></div>
+        </div>
+        <div class="preview" id="preview"></div>
+        <div class="row mt">
+          <button class="btn primary" id="save">Save</button>
+          <button class="btn danger" id="clear">Clear</button>
+        </div>
+      </section>
   <div class="stats" id="stats"></div>
+  </div>
 
   <div class="leaves" id="leaves"></div>
 
   <div class="grid2">
-    <section class="panel">
-      <div class="loghead"><h2>Log the day</h2><div class="timer" id="timer" role="group" aria-label="Work timer"></div></div>
-      <div class="camp" id="camp" data-s="view" data-wx="clear"></div>
-
-      <label class="f" for="date">Day</label>
-      <input class="inp" type="date" id="date">
-      <div class="lab mt"><label class="f" for="hours">Worked</label><button type="button" class="fill" data-fill="hours">Fill rest</button></div>
-      <input class="inp big" id="hours" placeholder="7h 45m  or  8:00-12:00, 13:00-15:00" autocomplete="off">
-      <div class="two mt">
-        <div><div class="lab"><label class="f" for="ptoH">PTO</label><button type="button" class="fill" data-fill="ptoH">Fill rest</button></div><input class="inp" id="ptoH" placeholder="0h" autocomplete="off"></div>
-        <div><div class="lab"><label class="f" for="sickH">Sick leave</label><button type="button" class="fill" data-fill="sickH">Fill rest</button></div><input class="inp" id="sickH" placeholder="0h" autocomplete="off"></div>
-      </div>
-      <div class="preview" id="preview"></div>
-      <div class="row mt">
-        <button class="btn primary" id="save">Save</button>
-        <button class="btn danger" id="clear">Clear</button>
-      </div>
-    </section>
-
     <div>
       <section class="panel">
         <h2>Unlogged days</h2>

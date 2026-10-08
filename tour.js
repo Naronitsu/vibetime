@@ -3,12 +3,12 @@
 const TOUR_KEY = 'vibetime.tour';
 const TOUR_STEPS = [
   { sel: '.hero', title: 'Your quest', text: 'The mountain shows how far through the quarter you are. The weather shows how your balance sits against the monthly limit. The goal is to reach the flag, the last day of the quarter, back at zero.' },
+  { sel: '#timer', title: 'The timer', text: 'Press play when you start working. Pause for a break, play to carry on, and stop to add the time to today.' },
+  { sel: '#hours', title: 'Log the day', text: 'Type hours like 7h 45m or 7.75, or time slots like 8:00-12:00, 13:00-15:00 and VibeTime adds them up. PTO and sick leave can share the same day. Fill rest tops it up to a full day.' },
   { sel: '#stats .stat:nth-child(1)', title: 'Balance', text: 'Your plus or minus against your target, and how much of it came from this month. Past working days with nothing logged count as 0h until you fill them in.' },
   { sel: '#stats .stat:nth-child(2)', title: 'Monthly limit', text: 'The dot should stay between the two ends. Go past either one and the weather turns.' },
   { sel: '.weekcard', title: 'This week’s stars', text: 'Every working day is a star. Log the day and it lights up. Open the Stars page to see the whole year.' },
   { sel: '#leaves', title: 'PTO and sick leave', text: 'The bottles show what is left of your yearly allowance. Click one to book dates, even a whole period at once, or to review what you booked.' },
-  { sel: '#timer', title: 'The timer', text: 'Press play when you start working. Pause for a break, play to carry on, and stop to add the time to today.' },
-  { sel: '#hours', title: 'Log the day', text: 'Type hours like 7h 45m or 7.75, or time slots like 8:00-12:00, 13:00-15:00 and VibeTime adds them up. PTO and sick leave can share the same day. Fill rest tops it up to a full day.' },
   { sel: () => document.getElementById('missing').closest('.panel'), title: 'Unlogged days', text: 'Past working days you haven’t logged show up here. Log a full day, or mark PTO or sick, with one click.' },
   { sel: '.side nav', right: true, title: 'Find your way around', text: 'The Calendar lets you edit any day. Stars is your year chart. In Settings you pick your country for public holidays, set your allowances and limits, and export a backup.' },
 ];

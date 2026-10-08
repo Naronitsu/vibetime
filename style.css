@@ -689,3 +689,13 @@ body.bare { display:block; }
   .msplit > div { padding-left:22px; } .msplit .sdot { left:7px; top:10px; width:9px; height:9px; }
 }
 #msum b, #msplit b { font-size:clamp(18px, 2.4vw, 24px); }
+
+/* ---------- Today layout: log the day first, with your balance beside it ---------- */
+.today-top { display:grid; grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr); gap:20px; align-items:start; margin-bottom:22px; }
+.today-top > .panel { margin:0; }
+.today-top .stats { grid-template-columns:1fr; gap:16px; margin:0; }
+@container col (max-width: 780px) {
+  .today-top { grid-template-columns:1fr; gap:16px; }
+  .today-top .stats { grid-template-columns:1fr 1fr; gap:12px; }
+  .today-top .stats .weekcard { grid-column:1 / -1; }
+}
