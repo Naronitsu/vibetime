@@ -76,6 +76,27 @@
   </div>
 </main>
 
+<dialog id="ldlg">
+  <div class="dbody">
+    <div class="ltop">
+      <h2 id="ltitle"></h2>
+      <div class="yrnav"><button class="btn sm" id="lprev" aria-label="Previous year">&larr;</button><button class="btn sm" id="lnext" aria-label="Next year">&rarr;</button></div>
+    </div>
+    <p class="dsub" id="lsub"></p>
+    <form id="lform" autocomplete="off">
+      <div class="addgrid">
+        <div><label class="f" for="lfrom">From</label><input class="inp" type="date" id="lfrom" required></div>
+        <div><label class="f" for="lto">To <span class="opt">(optional)</span></label><input class="inp" type="date" id="lto"></div>
+        <div><label class="f" for="lhrs">Hours per day <span class="opt">(blank = full day)</span></label><input class="inp" id="lhrs" placeholder="e.g. 4h"></div>
+        <div class="addbtn"><button class="btn primary" type="submit">Book it</button></div>
+      </div>
+    </form>
+    <div class="lmsg" id="lmsg" aria-live="polite"></div>
+    <ul class="list lscroll" id="llist"></ul>
+    <div class="dact"><span class="sp"></span><button class="btn" type="button" id="lclose">Done</button></div>
+  </div>
+</dialog>
+
 <script>
 renderNav('index.html');
 
@@ -176,6 +197,69 @@ function updatePreview() {
   const tot = num(v.w) + (exp > 0 ? num(v.pto) + num(v.sick) : 0), dl = tot - exp;
   preview.innerHTML = `Total <b>${fh(tot, false)}</b>${exp ? ` of ${fh(exp, false)} expected` : ''}: <b class="${cls(dl)}">${Math.abs(dl) < 1e-9 ? 'on target' : fh(dl)}</b>`;
 }
+// ---- booking dates for a kind of leave
+let leaveType = null, leaveYear = new Date().getFullYear();
+const dayLabel = d => d.toLocaleDateString('en', { weekday: 'short', day: 'numeric', month: 'short' });
+
+function renderLeaveDlg() {
+  const L = leaveStats(leaveYear)[leaveType], name = LEAVE_NAME[leaveType], T = state.settings.target || 1;
+  $('ltitle').textContent = `${name} · ${leaveYear}`;
+  $('lsub').textContent = L.total > 0
+    ? `${fd(L.booked)} of ${fd(L.total)} days booked, ${fd(L.remaining)} left.`
+    : `${fd(L.booked)} days booked. Set your yearly allowance in Settings.`;
+  const today = fmt(new Date());
+  const rows = Object.keys(state.days).filter(k => k.startsWith(`${leaveYear}-`) && state.days[k][leaveType] > 0).sort();
+  $('llist').innerHTML = rows.length ? rows.map(k => {
+    const d = parseDate(k), h = state.days[k][leaveType], counts = expectedFor(d) > 0;
+    return `<li data-k="${k}">
+      <span class="d">${dayLabel(d)}${counts ? '' : ' <em class="muted">(not a working day, not counted)</em>'}</span>
+      <span class="tab">${fh(h, false)}</span>
+      <span class="badge ${k > today ? 'warn' : 'ok'}">${k > today ? 'planned' : k === today ? 'today' : 'taken'}</span>
+      <button class="btn sm x" data-del="${k}" aria-label="Remove ${dayLabel(d)}">&times;</button>
+    </li>`;
+  }).join('') : `<li class="empty">No ${name} booked in ${leaveYear} yet.</li>`;
+}
+function openLeave(t) {
+  leaveType = t; leaveYear = new Date().getFullYear();
+  $('lfrom').value = fmt(new Date()); $('lto').value = ''; $('lhrs').value = ''; $('lmsg').textContent = '';
+  renderLeaveDlg();
+  $('ldlg').showModal();
+}
+const refreshAll = () => { renderStats(); renderLeaves(); renderMissing(); loadDay(); };
+$('leaves').addEventListener('click', ev => { const p = ev.target.closest('[data-leave]'); if (p && !ev.target.closest('a')) openLeave(p.dataset.leave); });
+$('leaves').addEventListener('keydown', ev => { const p = ev.target.closest('[data-leave]'); if (p && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); openLeave(p.dataset.leave); } });
+$('lprev').onclick = () => { leaveYear--; renderLeaveDlg(); };
+$('lnext').onclick = () => { leaveYear++; renderLeaveDlg(); };
+$('lclose').onclick = () => $('ldlg').close();
+$('ldlg').addEventListener('click', ev => { if (ev.target === $('ldlg')) $('ldlg').close(); });
+$('ldlg').addEventListener('close', refreshAll);
+$('llist').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-del]'); if (!b) return;
+  setLeave(b.dataset.del, leaveType, 0);
+  $('lmsg').textContent = ''; renderLeaveDlg();
+});
+$('lform').onsubmit = ev => {
+  ev.preventDefault();
+  const msg = (t, bad) => { $('lmsg').innerHTML = `<span class="${bad ? 'neg' : 'pos'}">${t}</span>`; };
+  const from = parseDate($('lfrom').value), to = $('lto').value ? parseDate($('lto').value) : from;
+  const hrs = parseHours($('lhrs').value);
+  if (Number.isNaN(hrs)) return msg('Try 4h, 7:30 or 3.5 for the hours.', true);
+  if (to < from) return msg('The end date is before the start date.', true);
+  if ((to - from) / 864e5 > 400) return msg('That range is too long.', true);
+  const amount = hrs > 0 ? hrs : state.settings.target;
+  let added = 0, skipped = 0;
+  for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+    if (expectedFor(d) === 0) { skipped++; continue; }
+    setLeave(fmt(d), leaveType, amount, false); added++;
+  }
+  save();
+  if (!added) return msg('Nothing booked: those dates are not working days.', true);
+  leaveYear = from.getFullYear();
+  renderLeaveDlg();
+  msg(`Booked ${added} day${added === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} non-working day${skipped === 1 ? '' : 's'}` : ''}.`);
+  $('lto').value = '';
+};
+
 const BOTTLE = 'M30 14 V30 C30 40 12 44 12 62 V92 A14 14 0 0 0 26 106 H54 A14 14 0 0 0 68 92 V62 C68 44 50 40 50 30 V14 Z';
 const WAVE = 'M-80 0 q10 -5 20 0' + ' t20 0'.repeat(11) + ' V120 H-80 Z';
 function renderLeaves() {
@@ -184,7 +268,7 @@ function renderLeaves() {
     const x = L[t], set = x.total > 0;
     const frac = set ? Math.max(0, Math.min(1, x.remaining / x.total)) : 0;
     const lvl = 106 - 62 * frac;
-    return `<div class="panel stat ${t}">
+    return `<div class="panel stat clickable ${t}" data-leave="${t}" role="button" tabindex="0" aria-label="Manage ${name} dates">
       <svg class="bottle" viewBox="0 0 80 110" aria-hidden="true">
         <defs><clipPath id="clip-${t}"><path d="${BOTTLE}"/></clipPath></defs>
         <g clip-path="url(#clip-${t})">
@@ -200,6 +284,7 @@ function renderLeaves() {
         <div class="v ${x.remaining < 0 ? 'neg' : ''}">${set ? fd(x.remaining) : fd(x.booked)} <small>${set ? 'days left' : 'days booked'}</small></div>
         <div class="split tab"><span><b>${fd(x.total)}</b>total</span><span><b>${fd(x.booked)}</b>booked</span><span><b>${fd(x.remaining)}</b>left</span></div>
         <div class="s">${fd(x.taken)} taken, ${fd(x.upcoming)} upcoming${set ? '' : ' · <a href="settings.html">set your allowance</a>'}</div>
+        <div class="manage">Book or review dates &rarr;</div>
       </div>
     </div>`;
   }).join('');

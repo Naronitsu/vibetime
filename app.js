@@ -169,6 +169,13 @@ function setEntry(k, { w = null, pto = null, sick = null } = {}) {
   if (Object.keys(e).length) state.days[k] = e; else delete state.days[k];
   save();
 }
+// Set (or clear, with hours <= 0) one kind of leave on a day, keeping whatever else is logged there.
+function setLeave(k, type, hours, persist = true) {
+  const e = { ...(state.days[k] || {}) };
+  if (hours > 0) e[type] = hours; else delete e[type];
+  if (Object.keys(e).length) state.days[k] = e; else delete state.days[k];
+  if (persist) save();
+}
 const LEAVE_NAME = { pto: 'PTO', sick: 'Sick leave' };
 // Older saves used { h, leave, type, lh }; convert them to { w, pto, sick }.
 function migrateDays(days) {
