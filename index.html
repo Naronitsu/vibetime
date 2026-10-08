@@ -65,11 +65,12 @@
 
     <div>
       <section class="panel">
-        <h2>Still unwritten</h2>
+        <h2>Unlogged days</h2>
+        <p class="dsub" style="margin:-6px 0 6px">Past working days with nothing logged yet. They don't count toward your balance until you fill them in.</p>
         <ul class="list" id="missing"></ul>
       </section>
-      <section class="panel mt" id="holPanel" hidden>
-        <h2>Festivals ahead</h2>
+      <section class="panel mt" id="holPanel">
+        <h2>Public holidays</h2>
         <ul class="list" id="holidays"></ul>
       </section>
     </div>
@@ -321,8 +322,11 @@ function renderLeaves() {
   }).join('');
 }
 function renderHolidays() {
-  const up = state.settings.country ? upcomingHolidays(4) : [];
-  $('holPanel').hidden = !up.length;
+  if (!state.settings.country) {
+    $('holidays').innerHTML = `<li class="empty" style="display:block">Pick your country to see its public holidays here. They count as days off, so no hours are expected on them.<br><a href="settings.html">Choose your country &rarr;</a></li>`;
+    return;
+  }
+  const up = upcomingHolidays(4);
   $('holidays').innerHTML = up.map(h => `<li><span class="d">${h.name}</span><span class="tab" style="color:var(--muted)">${h.date.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})}</span></li>`).join('');
 }
 const refresh = () => { renderStats(); renderLeaves(); renderMissing(); renderHolidays(); loadDay(); };
