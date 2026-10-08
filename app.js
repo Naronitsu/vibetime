@@ -19,6 +19,16 @@ try { state = JSON.parse(localStorage.getItem(KEY)) || defaults(); } catch { sta
 state.settings = { ...defaults().settings, ...state.settings };
 if (!Array.isArray(state.settings.workDays)) state.settings.workDays = [1, 2, 3, 4, 5];
 if (state.settings.limit != null) { state.settings.limitMax = state.settings.limitMin = state.settings.limit; delete state.settings.limit; }
+// Allowances used to be stored in days; they are hours now. Convert old data once, using the daily target.
+function migrateSettings() {
+  const st = state.settings;
+  if (st.allowanceUnit === 'h') return;
+  const T = Number(st.target) || 8;
+  st.ptoTotal = (Number(st.ptoTotal) || 0) * T;
+  st.sickTotal = (Number(st.sickTotal) || 0) * T;
+  st.allowanceUnit = 'h';
+}
+migrateSettings();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
 
 // ---- theme + navigation
@@ -193,19 +203,18 @@ function migrateDays(days) {
 }
 migrateDays(state.days);
 
-// Time-off usage for a calendar year, in days. Leave on non-working days or public holidays doesn't count.
+// Time-off usage for a calendar year, in hours. Leave on non-working days or public holidays doesn't count.
 function leaveStats(year) {
   const today = startOfToday();
   const out = {
     pto:  { total: Number(state.settings.ptoTotal) || 0,  taken: 0, upcoming: 0 },
     sick: { total: Number(state.settings.sickTotal) || 0, taken: 0, upcoming: 0 },
   };
-  const T = state.settings.target || 1;
   for (const k in state.days) {
     const e = state.days[k], d = parseDate(k);
     if (d.getFullYear() !== year || expectedFor(d) === 0) continue;
     for (const t of ['pto', 'sick']) {
-      const n = (e[t] || 0) / T; if (!n) continue;
+      const n = e[t] || 0; if (!n) continue;
       if (d <= today) out[t].taken += n; else out[t].upcoming += n;
     }
   }

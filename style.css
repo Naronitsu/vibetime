@@ -249,6 +249,13 @@ dialog[open]::backdrop { animation:fade .2s ease; }
 .lscroll .x { padding:0 9px; font-size:18px; line-height:1.2; }
 .muted { color:var(--muted); font-style:normal; font-size:13px; }
 #ldlg { width:min(560px, calc(100vw - 32px)); }
+.lscroll li.grp { display:block; padding:0; }
+.lscroll details summary { display:flex; align-items:center; gap:10px; padding:9px 0; cursor:pointer; list-style:none; }
+.lscroll details summary::-webkit-details-marker { display:none; }
+.lscroll details summary::before { content:'\25B8'; font-size:14px; color:var(--muted); transition:transform .15s; }
+.lscroll details[open] summary::before { transform:rotate(90deg); }
+.lscroll .sub { list-style:none; margin:0 0 8px 18px; padding:0; }
+.lscroll .sub li { padding:6px 0; font-size:14px; }
 
 /* ---------- settings ---------- */
 .section { margin-bottom:24px; }

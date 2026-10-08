@@ -28,8 +28,8 @@
   <section class="panel section">
     <h2>Time off allowance (per year)</h2>
     <div class="fields">
-      <label class="field"><span class="t"><b>PTO (days)</b><span>Your total paid time off for the calendar year.</span></span><input class="inp" type="number" step="0.5" min="0" id="sPto"></label>
-      <label class="field"><span class="t"><b>Sick leave (days)</b><span>Your total sick leave allowance for the calendar year.</span></span><input class="inp" type="number" step="0.5" min="0" id="sSick"></label>
+      <label class="field"><span class="t"><b>PTO per year</b><span>Total paid time off, e.g. 192h or 192h 30m.</span></span><input class="inp" id="sPto" placeholder="e.g. 192h"></label>
+      <label class="field"><span class="t"><b>Sick leave per year</b><span>Total sick leave allowance, e.g. 80h.</span></span><input class="inp" id="sSick" placeholder="e.g. 80h"></label>
     </div>
   </section>
 
@@ -57,8 +57,18 @@
 
 <script>
 renderNav('settings.html');
-const sMap = { sTarget:'target', sLimitMax:'limitMax', sLimitMin:'limitMin', sQTarget:'quarterTarget', sStart:'start', sOpening:'opening', sPto:'ptoTotal', sSick:'sickTotal' };
-const loadSettings = () => { for (const id in sMap) document.getElementById(id).value = state.settings[sMap[id]]; };
+const sMap = { sTarget:'target', sLimitMax:'limitMax', sLimitMin:'limitMin', sQTarget:'quarterTarget', sStart:'start', sOpening:'opening' };
+const hMap = { sPto:'ptoTotal', sSick:'sickTotal' };
+const loadSettings = () => {
+  for (const id in sMap) document.getElementById(id).value = state.settings[sMap[id]];
+  for (const id in hMap) document.getElementById(id).value = toInput(state.settings[hMap[id]]);
+};
+for (const id in hMap) document.getElementById(id).addEventListener('change', e => {
+  const v = parseHours(e.target.value);
+  if (Number.isNaN(v)) { e.target.classList.add('invalid'); return; }
+  e.target.classList.remove('invalid');
+  state.settings[hMap[id]] = v || 0; e.target.value = toInput(v || 0); save();
+});
 for (const id in sMap) document.getElementById(id).addEventListener('change', e => {
   if (!e.target.value) { loadSettings(); return; }
   state.settings[sMap[id]] = sMap[id] === 'start' ? e.target.value : Number(e.target.value);
@@ -101,7 +111,7 @@ document.getElementById('file').onchange = async e => {
   try {
     const data = JSON.parse(await e.target.files[0].text());
     if (!data.days || !data.settings) throw 0;
-    state = data; state.settings = { ...defaults().settings, ...state.settings }; migrateDays(state.days); save(); loadSettings(); renderDays(); countrySel.value = state.settings.country; renderHolidayList(); applyTheme();
+    state = data; state.settings = { ...defaults().settings, ...state.settings }; migrateDays(state.days); migrateSettings(); save(); loadSettings(); renderDays(); countrySel.value = state.settings.country; renderHolidayList(); applyTheme();
   } catch { alert('That file is not a valid export.'); }
   e.target.value = '';
 };

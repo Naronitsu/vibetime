@@ -201,22 +201,50 @@ function updatePreview() {
 let leaveType = null, leaveYear = new Date().getFullYear();
 const dayLabel = d => d.toLocaleDateString('en', { weekday: 'short', day: 'numeric', month: 'short' });
 
+// Consecutive booked days (ignoring non-working days between them) form one period.
+function contiguous(a, b) {
+  const d = parseDate(a), end = parseDate(b);
+  for (d.setDate(d.getDate() + 1); d < end; d.setDate(d.getDate() + 1)) if (expectedFor(d) > 0) return false;
+  return true;
+}
+function leaveGroups(type, year) {
+  const keys = Object.keys(state.days).filter(k => k.startsWith(`${year}-`) && state.days[k][type] > 0).sort();
+  const groups = [];
+  for (const k of keys) {
+    const g = groups[groups.length - 1];
+    if (g && contiguous(g[g.length - 1], k)) g.push(k); else groups.push([k]);
+  }
+  return groups;
+}
 function renderLeaveDlg() {
-  const L = leaveStats(leaveYear)[leaveType], name = LEAVE_NAME[leaveType], T = state.settings.target || 1;
+  const L = leaveStats(leaveYear)[leaveType], name = LEAVE_NAME[leaveType];
   $('ltitle').textContent = `${name} · ${leaveYear}`;
   $('lsub').textContent = L.total > 0
-    ? `${fd(L.booked)} of ${fd(L.total)} days booked, ${fd(L.remaining)} left.`
-    : `${fd(L.booked)} days booked. Set your yearly allowance in Settings.`;
+    ? `${fh(L.booked, false)} of ${fh(L.total, false)} booked, ${fh(L.remaining, false)} left.`
+    : `${fh(L.booked, false)} booked. Set your yearly allowance in Settings.`;
   const today = fmt(new Date());
-  const rows = Object.keys(state.days).filter(k => k.startsWith(`${leaveYear}-`) && state.days[k][leaveType] > 0).sort();
-  $('llist').innerHTML = rows.length ? rows.map(k => {
+  const row = (k, extra = '') => {
     const d = parseDate(k), h = state.days[k][leaveType], counts = expectedFor(d) > 0;
-    return `<li data-k="${k}">
-      <span class="d">${dayLabel(d)}${counts ? '' : ' <em class="muted">(not a working day, not counted)</em>'}</span>
+    return `<li data-k="${k}"><span class="d">${dayLabel(d)}${counts ? '' : ' <em class="muted">(not a working day, not counted)</em>'}</span>
       <span class="tab">${fh(h, false)}</span>
-      <span class="badge ${k > today ? 'warn' : 'ok'}">${k > today ? 'planned' : k === today ? 'today' : 'taken'}</span>
-      <button class="btn sm x" data-del="${k}" aria-label="Remove ${dayLabel(d)}">&times;</button>
-    </li>`;
+      <button class="btn sm x" data-del="${k}" aria-label="Remove ${dayLabel(d)}">&times;</button></li>`;
+  };
+  const groups = leaveGroups(leaveType, leaveYear);
+  $('llist').innerHTML = groups.length ? groups.map(g => {
+    const first = g[0], last = g[g.length - 1];
+    const status = first > today ? ['warn', 'planned'] : last < today ? ['ok', 'taken'] : first === today && last === today ? ['ok', 'today'] : ['ok', 'under way'];
+    if (g.length === 1) {
+      const d = parseDate(first), counts = expectedFor(d) > 0;
+      return `<li data-k="${first}"><span class="d">${dayLabel(d)}${counts ? '' : ' <em class="muted">(not a working day, not counted)</em>'}</span>
+        <span class="tab">${fh(state.days[first][leaveType], false)}</span><span class="badge ${status[0]}">${status[1]}</span>
+        <button class="btn sm x" data-del="${first}" aria-label="Remove ${dayLabel(d)}">&times;</button></li>`;
+    }
+    const hrs = g.reduce((s, k) => s + state.days[k][leaveType], 0);
+    return `<li class="grp"><details><summary>
+        <span class="d"><b>${dayLabel(parseDate(first))} – ${dayLabel(parseDate(last))}</b> <em class="muted">${g.length} days</em></span>
+        <span class="tab">${fh(hrs, false)}</span><span class="badge ${status[0]}">${status[1]}</span>
+        <button class="btn sm x" data-delgroup="${g.join(',')}" aria-label="Remove this whole period">&times;</button>
+      </summary><ul class="sub">${g.map(k => row(k)).join('')}</ul></details></li>`;
   }).join('') : `<li class="empty">No ${name} booked in ${leaveYear} yet.</li>`;
 }
 function openLeave(t) {
@@ -234,8 +262,11 @@ $('lclose').onclick = () => $('ldlg').close();
 $('ldlg').addEventListener('click', ev => { if (ev.target === $('ldlg')) $('ldlg').close(); });
 $('ldlg').addEventListener('close', refreshAll);
 $('llist').addEventListener('click', ev => {
-  const b = ev.target.closest('[data-del]'); if (!b) return;
-  setLeave(b.dataset.del, leaveType, 0);
+  const one = ev.target.closest('[data-del]'), many = ev.target.closest('[data-delgroup]');
+  if (!one && !many) return;
+  ev.preventDefault();                       // don't toggle the period open/closed
+  if (one) setLeave(one.dataset.del, leaveType, 0);
+  else { const ks = many.dataset.delgroup.split(','); ks.forEach(k => setLeave(k, leaveType, 0, false)); save(); }
   $('lmsg').textContent = ''; renderLeaveDlg();
 });
 $('lform').onsubmit = ev => {
@@ -281,9 +312,9 @@ function renderLeaves() {
       </svg>
       <div class="body">
         <div class="k">${name} · ${y}</div>
-        <div class="v ${x.remaining < 0 ? 'neg' : ''}">${set ? fd(x.remaining) : fd(x.booked)} <small>${set ? 'days left' : 'days booked'}</small></div>
-        <div class="split tab"><span><b>${fd(x.total)}</b>total</span><span><b>${fd(x.booked)}</b>booked</span><span><b>${fd(x.remaining)}</b>left</span></div>
-        <div class="s">${fd(x.taken)} taken, ${fd(x.upcoming)} upcoming${set ? '' : ' · <a href="settings.html">set your allowance</a>'}</div>
+        <div class="v ${x.remaining < 0 ? 'neg' : ''}">${fh(set ? x.remaining : x.booked, false)} <small>${set ? 'left' : 'booked'}</small></div>
+        <div class="split tab"><span><b>${fh(x.total, false)}</b>total</span><span><b>${fh(x.booked, false)}</b>booked</span><span><b>${fh(x.remaining, false)}</b>left</span></div>
+        <div class="s">${fh(x.taken, false)} taken, ${fh(x.upcoming, false)} upcoming${set ? '' : ' · <a href="settings.html">set your allowance</a>'}</div>
         <div class="manage">Book or review dates &rarr;</div>
       </div>
     </div>`;
