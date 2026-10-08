@@ -12,6 +12,7 @@ function defaults() {
     settings: { target: 8, workDays: [1, 2, 3, 4, 5], country: '', region: '', ptoTotal: 0, sickTotal: 0, limitMax: 4, limitMin: 4, quarterTarget: 0, theme: 'dark',
                 start: fmt(new Date(now.getFullYear(), now.getMonth(), 1)), opening: 0 },
     days: {},
+    mod: {}, settingsMod: 0,           // when each day / the settings last changed (used to merge devices)
     version: SCHEMA,
   };
 }
@@ -87,6 +88,9 @@ function migrateState(raw) {
     if (!good) { delete d.days[k]; skipped++; }
   }
   if (skipped) warnings.push(`${skipped} day entr${skipped === 1 ? 'y was' : 'ies were'} unreadable and skipped.`);
+  d.mod = {};
+  if (raw.mod && typeof raw.mod === 'object' && !Array.isArray(raw.mod)) for (const [k, t] of Object.entries(raw.mod)) if (Number.isFinite(t) && /^\d{4}-\d{2}-\d{2}$/.test(k)) d.mod[k] = t;
+  d.settingsMod = Number.isFinite(raw.settingsMod) ? raw.settingsMod : 0;
   d.version = SCHEMA;
   return { data: d, warnings, sourceVersion };
 }
@@ -105,7 +109,25 @@ const WELCOME_KEY = 'vibetime.welcomed';
 try {
   if (!localStorage.getItem(KEY) && !localStorage.getItem(WELCOME_KEY) && !/welcome\.html$/.test(location.pathname)) location.replace('welcome.html');
 } catch {}
-const save = () => { state.version = SCHEMA; try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+// Change tracking for device sync: every save notices which days (and whether the settings) changed since the last
+// save and stamps them with the time, so two devices can later keep the newer version of each day. Theme is per device.
+let _days, _set;
+const settingsKey = () => { const { theme, ...rest } = state.settings; return JSON.stringify(rest); };
+function snapshotState() { _days = Object.fromEntries(Object.entries(state.days).map(([k, e]) => [k, JSON.stringify(e)])); _set = settingsKey(); }
+snapshotState();
+function trackChanges() {
+  const now = Date.now();
+  if (!state.mod) state.mod = {};
+  for (const [k, e] of Object.entries(state.days)) { const j = JSON.stringify(e); if (_days[k] !== j) { state.mod[k] = now; _days[k] = j; } }
+  for (const k of Object.keys(_days)) if (!(k in state.days)) { state.mod[k] = now; delete _days[k]; }
+  const sj = settingsKey(); if (sj !== _set) { state.settingsMod = now; _set = sj; }
+}
+const save = (track = true) => {
+  if (track) trackChanges();
+  state.version = SCHEMA;
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+  if (track && window.vtSyncSoon) vtSyncSoon();
+};
 
 // Backup file contents, and a safety copy of the current data taken before any import or erase.
 const exportData = () => ({ app: 'vibetime', version: SCHEMA, exportedAt: new Date().toISOString(), settings: state.settings, days: state.days });

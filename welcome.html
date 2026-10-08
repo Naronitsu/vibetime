@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Welcome · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=b209e140">
+<link rel="stylesheet" href="style.css?v=4cda029a">
 <script src="holidays.js?v=270cf135"></script>
-<script src="app.js?v=5e7ba0e1"></script>
+<script src="app.js?v=4255b17a"></script>
+<script src="sync.js?v=2d5fd296"></script>
 </head>
 <body class="bare">
 <main class="welcome">
@@ -24,6 +25,7 @@
     <div class="choices">
       <button class="choice primary" id="goSetup" type="button"><b>Set up VibeTime</b><span>Answer a few quick questions. Takes about a minute.</span></button>
       <button class="choice" id="goImport" type="button"><b>Import a backup</b><span>Already use VibeTime? Restore your settings and logged days from a backup file.</span></button>
+      <button class="choice wide" id="goDrive" type="button" hidden><b>Restore from Google Drive</b><span>Already sync VibeTime on another device? Sign in with the same Google account and everything comes across.</span></button>
       <input type="file" id="file" accept="application/json,.json" hidden>
     </div>
     <p class="dsub" id="importMsg" role="status"></p>
@@ -85,6 +87,15 @@ function show(n) {
   if (f) f.focus({ preventScroll: true });
 }
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => show(+b.dataset.go));
+
+// ---- restore from Google Drive
+if (syncAvailable() && !returning) $('goDrive').hidden = false;
+$('goDrive').onclick = async () => {
+  $('importMsg').textContent = 'Waiting for Google…';
+  const r = await syncRestore();
+  if (r.ok) { $('importMsg').innerHTML = '<span class="pos">Restored. Opening Today&hellip;</span>'; setTimeout(() => { location.href = 'index.html'; }, 700); }
+  else $('importMsg').innerHTML = `<span class="neg">${r.msg}</span>`;
+};
 
 // ---- import a backup
 $('goImport').onclick = () => $('file').click();

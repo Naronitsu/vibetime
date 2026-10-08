@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Settings · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=b209e140">
+<link rel="stylesheet" href="style.css?v=4cda029a">
 <script src="holidays.js?v=270cf135"></script>
-<script src="app.js?v=5e7ba0e1"></script>
+<script src="app.js?v=4255b17a"></script>
+<script src="sync.js?v=2d5fd296"></script>
 </head>
 <body>
 <div id="nav"></div>
@@ -45,6 +46,17 @@
     </div>
   </section>
 
+  <section class="panel section" id="syncBox">
+    <h2>Sync between devices</h2>
+    <p class="lede" id="syncInfo"></p>
+    <div class="row">
+      <button class="btn primary" id="syncConnect" hidden>Connect Google Drive</button>
+      <button class="btn" id="syncNow" hidden>Sync now</button>
+      <button class="btn danger" id="syncOff" hidden>Disconnect</button>
+    </div>
+    <p class="preview" id="syncMsg" role="status"></p>
+  </section>
+
   <section class="panel section">
     <h2>Your data</h2>
     <p class="lede" id="dataInfo"></p>
@@ -55,7 +67,7 @@
       <button class="btn danger" id="reset">Erase everything</button>
       <input type="file" id="file" accept="application/json,.json" hidden>
     </div>
-    <p class="hint" style="margin:12px 0 0"><a href="welcome.html">Replay the quick tour</a></p>
+    <p class="hint" style="margin:12px 0 0"><a href="welcome.html">Replay the quick tour</a> &middot; <a href="privacy.html">Privacy</a></p>
     <p class="hint" style="color:var(--muted);font-size:14px;margin:12px 0 0">A backup holds every setting and every logged day in one file. Backups made by older versions still import, and backups stay readable after future updates.</p>
   </section>
 </main>
@@ -154,6 +166,24 @@ function refreshDataInfo() {
 }
 refreshDataInfo();
 
+// ---- device sync (Google Drive)
+function renderSync() {
+  const on = syncAvailable() && syncConnected(), st = syncStatus(), last = (syncInfo() || {}).last;
+  $('syncConnect').hidden = !syncAvailable() || on; $('syncNow').hidden = !on; $('syncOff').hidden = !on;
+  $('syncNow').textContent = st.state === 'signin' ? 'Sign in again' : 'Sync now';
+  $('syncInfo').textContent = !syncAvailable() ? 'Syncing isn’t switched on for this copy of VibeTime yet. You can still move your data with a backup file.'
+    : on ? 'Connected to Google Drive. Your data is kept in one file in a hidden app folder that only VibeTime can see, and merged between your devices automatically. If you edit the same day on two devices, the newer edit wins.'
+    : 'Keep your phone and computer in step. Sign in with the same Google account on each device and your data is saved to a hidden VibeTime folder in your own Google Drive and merged automatically. VibeTime can’t see anything else in your Drive, and nothing goes to anyone else.';
+  const ago = last ? `Last synced ${new Date(last).toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' })}.` : '';
+  $('syncMsg').innerHTML = !on ? (st.state === 'error' ? `<span class="neg">${st.msg}</span>` : '')
+    : st.state === 'syncing' ? 'Syncing…' : st.state === 'signin' ? `<span class="neg">${st.msg}</span>` : st.state === 'error' ? `<span class="neg">${st.msg}</span> ${ago}` : `<span class="pos">${st.msg || 'In sync.'}</span> ${ago}`;
+}
+$('syncConnect').onclick = async () => { if (await syncConnect()) { await syncNow(true); renderSync(); } else renderSync(); };
+$('syncNow').onclick = () => syncNow();
+$('syncOff').onclick = async () => { if (confirm('Disconnect Google Drive on this device? Your data stays here and in Drive.')) { await syncDisconnect(); renderSync(); } };
+window.addEventListener('vibetime-sync', renderSync);
+renderSync();
+
 $('export').onclick = () => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(exportData(), null, 2)], { type: 'application/json' }));
@@ -178,7 +208,7 @@ $('file').onchange = async e => {
 };
 const applyImport = mode => {
   stashBackup();
-  if (mode === 'replace') state = pending.data;
+  if (mode === 'replace') { pending.data.mod = state.mod; pending.data.settingsMod = state.settingsMod; state = pending.data; }
   else state.days = { ...state.days, ...pending.data.days };
   save(); location.reload();
 };
@@ -194,7 +224,7 @@ $('undo').onclick = () => {
   catch (err) { alert(err.message); }
 };
 $('reset').onclick = () => {
-  if (!confirm('Erase all logged time and settings? A safety copy is kept so you can undo this.')) return;
+  if (!confirm('Erase all logged time and settings? A safety copy is kept so you can undo this.' + (syncConnected() ? '\n\nDrive sync is on, so this will be erased on your other devices too.' : ''))) return;
   stashBackup(); state = defaults(); save(); location.reload();
 };
 </script>

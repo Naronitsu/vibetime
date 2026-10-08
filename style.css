@@ -499,3 +499,6 @@ body.bare { display:block; }
 .tact { display:flex; align-items:center; gap:8px; }
 .tact .sp { flex:1; }
 .tact .btn[hidden] { display:none; }
+
+.choice.wide { grid-column:1 / -1; }
+.choice[hidden] { display:none; }
