@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="style.css">
 <script src="holidays.js"></script>
 <script src="app.js"></script>
+<script src="sky.js"></script>
 </head>
 <body>
 <div id="nav"></div>
@@ -16,19 +17,26 @@
       <div class="eyebrow" id="eyebrow"></div>
       <h1 id="title">Today</h1>
       <p class="lede" id="lede"></p>
+      <div class="wxline" id="wxline"></div>
       <span class="badge" id="qbadge"></span>
     </div>
-    <svg class="scene" id="scene" viewBox="0 0 520 240" role="img" aria-label="Your progress through the quarter, climbing toward its last day">
-      <circle class="rays" cx="62" cy="42" r="28" fill="none" stroke-dasharray="3 8"/>
-      <circle class="sun stroke" cx="62" cy="42" r="19"/>
+    <svg class="scene" id="scene" data-wx="clear" viewBox="0 0 520 240" role="img" aria-label="Your progress through the quarter, climbing toward its last day">
+      <g class="sungrp"><circle class="rays" cx="62" cy="42" r="28" fill="none" stroke-dasharray="3 8"/><circle class="sun stroke" cx="62" cy="42" r="19"/></g>
       <g class="cloud a"><ellipse cx="190" cy="62" rx="26" ry="11"/><ellipse cx="208" cy="55" rx="17" ry="12"/><ellipse cx="174" cy="57" rx="14" ry="9"/></g>
       <g class="cloud b"><ellipse cx="450" cy="92" rx="20" ry="8"/><ellipse cx="462" cy="86" rx="12" ry="9"/></g>
+      <g class="stormclouds">
+        <ellipse cx="70" cy="36" rx="58" ry="20"/><ellipse cx="120" cy="50" rx="44" ry="18"/><ellipse cx="30" cy="54" rx="34" ry="16"/>
+        <ellipse cx="250" cy="30" rx="64" ry="22"/><ellipse cx="300" cy="48" rx="52" ry="18"/><ellipse cx="205" cy="48" rx="40" ry="16"/>
+        <ellipse cx="450" cy="40" rx="62" ry="22"/><ellipse cx="500" cy="58" rx="40" ry="16"/><ellipse cx="400" cy="60" rx="44" ry="16"/>
+      </g>
       <path class="m3 stroke" d="M-10 214 L70 128 L150 214 Z"/>
       <path class="m1 stroke" d="M96 214 L215 84 L330 214 Z"/>
       <path class="snow stroke" d="M215 84 L234 106 L224 101 L215 111 L206 100 L196 107 Z"/>
       <path class="m2 stroke" d="M270 214 L392 40 L530 214 Z"/>
       <path class="snow stroke" d="M392 40 L414 72 L402 66 L392 80 L381 66 L370 74 Z"/>
       <path class="m3 stroke" d="M-5 240 V205 Q120 192 260 206 T530 200 V240 Z"/>
+      <g class="rain"><g id="rainin"></g></g>
+      <path class="bolt" d="M262 20 L246 66 L260 66 L248 112 L282 56 L266 56 L276 20Z"/>
       <path class="trail" id="trail" d="M30 222 C95 214 118 188 170 186 S250 190 288 150 S348 96 388 56"/>
       <g class="flag"><line x1="392" y1="40" x2="392" y2="14" style="stroke:var(--line)" stroke-width="3" stroke-linecap="round"/><path d="M392 14 L418 21 L392 29 Z" style="fill:var(--accent);stroke:var(--line)" stroke-width="2.5" stroke-linejoin="round"/></g>
       <text id="lblStart" x="14" y="236"></text>
@@ -116,6 +124,22 @@ function placeHiker(p) {
   requestAnimationFrame(step);
 }
 
+// rain: slanted strokes on a lattice that repeats every 40px vertically, so the fall loops seamlessly
+(() => {
+  let r = '';
+  for (let row = -2; row < 8; row++) for (let x = (row % 2 ? 13 : 0); x < 540; x += 26) r += `<line x1="${x}" y1="${row * 20}" x2="${x - 4}" y2="${row * 20 + 10}"/>`;
+  document.getElementById('rainin').innerHTML = r;
+})();
+
+function weekCard() {
+  const g = weekGroup(mondayOf(new Date()), 8, 8, 204, 62);
+  return `<a class="panel stat weekcard" href="sky.html" aria-label="Open the star chart">
+      <div class="k">This week's constellation</div>
+      <div class="skybox"><svg viewBox="0 0 220 78" role="img" aria-label="This week's stars">${g.svg}</svg></div>
+      <div class="s"><b>${g.lit} of ${g.n}</b> stars lit${g.complete ? ' · constellation complete' : ''}</div>
+    </a>`;
+}
+
 function renderStats() {
   const s = stats(), { target, limitMax, limitMin } = state.settings;
   const hr = new Date().getHours();
@@ -132,6 +156,9 @@ function renderStats() {
     : (s.needAvg > 12 || s.needAvg < 0) ? ['bad', 'Steep climb']
     : Math.abs(s.needAvg - target) > 1.5 ? ['warn', 'Needs a plan'] : ['ok', 'On the trail'];
   $('qbadge').className = `badge ${bc}`; $('qbadge').textContent = bt;
+  const wx = weather(s.bal);
+  $('scene').dataset.wx = wx.key;
+  $('wxline').innerHTML = `<b>${wx.title}</b> · ${wx.text}`;
 
   const qs = new Date(s.today.getFullYear(), Math.floor(s.today.getMonth() / 3) * 3, 1);
   $('lblStart').textContent = qs.toLocaleDateString('en', { day: 'numeric', month: 'short' });
@@ -153,7 +180,7 @@ function renderStats() {
       </div>
       <div class="ends tab"><span>−${limitMin}h</span><span>+${limitMax}h</span></div>
       <div style="margin-top:10px"><span class="badge ${s.within ? 'ok' : 'bad'}">${s.within ? 'Within limit' : 'Outside limit'}</span></div>
-    </div>`;
+    </div>${weekCard()}`;
 }
 
 function renderMissing() {

@@ -113,6 +113,7 @@ const ICONS = {
   today: '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>',
   calendar: '<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
   settings: '<svg class="ic" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>',
+  star: '<svg class="ic" viewBox="0 0 24 24"><path d="M12 3l2.4 5.6 6.1.5-4.6 4 1.4 5.9L12 15.9 6.7 19l1.4-5.9-4.6-4 6.1-.5z"/></svg>',
   sun: '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   moon: '<svg class="ic" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>',
 };
@@ -130,7 +131,7 @@ function applyTheme() {
 applyTheme();
 
 function renderNav(page) {
-  const links = [['index.html', 'Today', ICONS.today], ['calendar.html', 'Calendar', ICONS.calendar], ['settings.html', 'Settings', ICONS.settings]];
+  const links = [['index.html', 'Today', ICONS.today], ['calendar.html', 'Calendar', ICONS.calendar], ['sky.html', 'Stars', ICONS.star], ['settings.html', 'Settings', ICONS.settings]];
   document.getElementById('nav').outerHTML = `
     <aside class="side">
       <div class="brand">${BRAND}<span class="bt">Vibe<br>Time</span></div>
@@ -166,6 +167,22 @@ function upcomingHolidays(n = 5) {
   return out;
 }
 prefetchHolidays(state.settings.country);
+
+// ---- weather: how your balance looks measured against the monthly limit
+function weather(bal) {
+  const { limitMax, limitMin } = state.settings;
+  const lim = bal >= 0 ? limitMax : limitMin;
+  const r = lim > 0 ? Math.abs(bal) / lim : (Math.abs(bal) < 0.01 ? 0 : 9);
+  const x = fh(Math.abs(bal), false);
+  if (r < 0.15) return { key: 'clear', title: 'Clear skies', text: 'Right on target.' };
+  if (bal < 0) {
+    if (r <= 0.5) return { key: 'cloudy', title: 'Clouds rolling in', text: `${x} short of target.` };
+    if (r <= 1) return { key: 'showers', title: 'Showers', text: `${x} short. Getting close to the monthly limit.` };
+    return { key: 'storm', title: 'Storm', text: `${x} short. Outside the monthly limit.` };
+  }
+  if (r <= 1) return { key: 'warm', title: 'Warm and sunny', text: `${x} extra banked.` };
+  return { key: 'heat', title: 'Heatwave', text: `${x} extra. Outside the monthly limit.` };
+}
 
 // ---- calculations
 // A day entry is { w, pto, sick }: hours worked, PTO hours and sick-leave hours, each optional and independent.

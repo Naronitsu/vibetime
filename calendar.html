@@ -166,7 +166,10 @@ $('prev').onclick = () => { view.setMonth(view.getMonth()-1); render(-1); };
 $('next').onclick = () => { view.setMonth(view.getMonth()+1); render(1); };
 $('today').onclick = () => { view = new Date(); view.setDate(1); render(1); };
 window.addEventListener('holidays-updated', () => render(null));
+const hash = location.hash.match(/^#(\d{4})-(\d{2})(?:-(\d{2}))?$/);
+if (hash) view = new Date(+hash[1], +hash[2] - 1, 1);
 render();
+if (hash && hash[3]) { const t = $('cal').querySelector(`[data-k="${hash[1]}-${hash[2]}-${hash[3]}"]`); if (t && !t.disabled) openDay(t.dataset.k); }
 </script>
 </body>
 </html>
