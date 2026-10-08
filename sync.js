@@ -62,16 +62,21 @@ async function requestToken() {
     _wait = { resolve, reject };
     _client = _client || google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID, scope: DRIVE_SCOPE,
-      callback: r => r.error ? _wait.reject(Object.assign(new Error(r.error_description || r.error), { signin: true })) : _wait.resolve(r),
+      callback: r => r.error ? _wait.reject(Object.assign(new Error(r.error_description || r.error), { signin: true }))
+        : !google.accounts.oauth2.hasGrantedAllScopes(r, DRIVE_SCOPE) ? _wait.reject(Object.assign(new Error('Google Drive access wasn’t ticked. Connect again and leave the Drive box ticked.'), { signin: true }))
+        : _wait.resolve(r),
       error_callback: e => _wait.reject(Object.assign(new Error('Google sign-in was closed or blocked.'), { signin: true, type: e && e.type })),
     });
     _client.requestAccessToken({ prompt: '' });
   });
 }
+// Google's sign-in window may only open from a click, so a background sync never opens it: it pauses instead.
+let _gesture = false;
 async function accessToken() {
   const i = syncInfo();
   if (!i) throw new Error('Not connected.');
   if (i.access && i.exp > Date.now() + 60000) return i.access;
+  if (!_gesture) throw Object.assign(new Error('Sync is paused. Sign in to Google again to resume.'), { signin: true });
   const r = await requestToken();
   syncWrite({ ...syncInfo(), access: r.access_token, exp: Date.now() + (Number(r.expires_in) || 3600) * 1000 });
   return r.access_token;
@@ -95,7 +100,10 @@ async function syncDisconnect() {
 async function drive(url, opts = {}) {
   const res = await fetch(url, { ...opts, headers: { Authorization: `Bearer ${await accessToken()}`, ...opts.headers } });
   if (res.status === 401) { syncWrite({ ...syncInfo(), access: null }); throw Object.assign(new Error('Sign in to Google again to keep syncing.'), { signin: true }); }
-  if (!res.ok) throw new Error(`Google Drive said no (${res.status}).`);
+  if (!res.ok) {
+    let why = ''; try { why = (await res.json()).error.message; } catch {}
+    throw new Error(`Google Drive said no (${res.status}${why ? ': ' + why : ''}).`);
+  }
   return res;
 }
 async function remoteGet() {
@@ -122,22 +130,18 @@ async function remotePut(m, id) {
 }
 
 // ---- the sync itself
-let _busy = false, _again = false, _timer = null, _armed = false;
+let _busy = false, _again = false, _timer = null;
 const localPayload = () => ({ settings: state.settings, days: state.days, mod: state.mod || {}, settingsMod: state.settingsMod || 0 });
 function applyMerged(m) {
   state.days = m.days; state.mod = m.mod; state.settingsMod = m.settingsMod;
   state.settings = { ...defaults().settings, ...m.settings, theme: state.settings.theme };
   snapshotState(); save(false);
 }
-// Browsers only allow Google's sign-in window after a click or tap, so when sign-in is needed we wait for the next one.
-function armResume() {
-  if (_armed) return; _armed = true;
-  document.addEventListener('click', () => { _armed = false; syncNow(); }, { once: true, capture: true });
-}
-async function syncNow(noReload = false) {
+// `gesture` is true when this was started by a click, which is the only time the Google sign-in window may open.
+async function syncNow(noReload = false, gesture = false) {
   if (!syncConnected() || !syncAvailable()) return;
   if (_busy) { _again = true; return; }
-  _busy = true; setSyncStatus('syncing');
+  _busy = true; _gesture = gesture === true; setSyncStatus('syncing');
   let changed = false;
   try {
     const remote = await remoteGet(), local = localPayload();
@@ -148,10 +152,10 @@ async function syncNow(noReload = false) {
     syncWrite({ ...syncInfo(), last: Date.now() });
     setSyncStatus('ok');
   } catch (err) {
-    if (err.signin) { setSyncStatus('signin', 'Tap anywhere to sign in to Google and resume syncing.'); armResume(); }
+    if (err.signin) setSyncStatus('signin', err.message);
     else setSyncStatus('error', err.message === 'Failed to fetch' ? 'Couldn’t reach Google Drive. Will try again.' : err.message);
   } finally {
-    _busy = false;
+    _busy = false; _gesture = false;
     if (_again) { _again = false; vtSyncSoon(); }
   }
   if (changed) {
@@ -172,7 +176,7 @@ async function syncRestore() {
   let found;
   try { found = await remoteGet(); } catch (err) { await syncDisconnect(); return { ok: false, msg: err.message }; }
   if (!found) { await syncDisconnect(); return { ok: false, msg: 'No VibeTime data was found in that Google account. Set up VibeTime instead, then connect Google Drive in Settings.' }; }
-  await syncNow(true);
+  await syncNow(true, true);
   try { localStorage.setItem(WELCOME_KEY, '1'); } catch {}
   return _syncStatus.state === 'error' ? { ok: false, msg: _syncStatus.msg } : { ok: true };
 }
@@ -186,3 +190,9 @@ if (syncAvailable() && syncConnected()) {
   });
   window.addEventListener('online', () => syncNow());
 }
+
+// A small chip in the sidebar when sync needs a sign-in (a click there is what allows Google's window to open).
+window.addEventListener('vibetime-sync', ev => {
+  const chip = document.getElementById('syncchip');
+  if (chip) chip.hidden = ev.detail.state !== 'signin';
+});

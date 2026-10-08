@@ -502,3 +502,8 @@ body.bare { display:block; }
 
 .choice.wide { grid-column:1 / -1; }
 .choice[hidden] { display:none; }
+
+.syncchip { border:3px solid var(--line); border-radius:14px; background:var(--warnbg); color:var(--ink); font-weight:800; padding:6px 8px; line-height:1.2; box-shadow:3px 3px 0 var(--shadow); text-align:center; }
+.syncchip small { display:block; font-weight:700; opacity:.8; font-size:11px; }
+.syncchip[hidden] { display:none; }
+@media (max-width:900px) { .syncchip { font-size:11px; padding:5px 3px; } .syncchip small { display:none; } }

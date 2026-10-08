@@ -163,6 +163,7 @@ function renderNav(page) {
     <aside class="side">
       <div class="brand">${BRAND}<span class="bt">Vibe<br>Time</span></div>
       <nav>${links.map(([h, t, i]) => `<a href="${h}" title="${t}" class="${h === page ? 'on' : ''}">${i}<span class="lbl">${t}</span></a>`).join('')}</nav>
+      <button class="syncchip" id="syncchip" hidden title="Sync is paused. Tap to sign in to Google again.">Sync paused<small>tap to sign in</small></button>
       <button class="themebtn" id="theme" title="Switch between day and night"></button>
     </aside>`;
   document.getElementById('theme').onclick = () => {
@@ -170,6 +171,7 @@ function renderNav(page) {
     save(); applyTheme();
   };
   applyTheme();
+  document.getElementById('syncchip').onclick = () => window.syncNow && syncNow(false, true);
 }
 
 // ---- public holidays (data and loading live in holidays.js)
