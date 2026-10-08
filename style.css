@@ -699,3 +699,18 @@ body.bare { display:block; }
   .today-top .stats { grid-template-columns:1fr 1fr; gap:12px; }
   .today-top .stats .weekcard { grid-column:1 / -1; }
 }
+
+/* ---------- Today: balanced columns ---------- */
+.today-top { align-items:stretch; }
+.today-top > .panel { display:flex; flex-direction:column; }
+.today-top > .panel > .row { margin-top:auto; padding-top:14px; }
+.today-top .stats { grid-template-rows:auto auto 1fr; }                 /* the constellation takes up any slack */
+.today-top .stats .weekcard { display:flex; flex-direction:column; }
+.today-top .stats .weekcard .skybox { flex:1; min-height:130px; }
+.today-top .stats .weekcard .skybox svg { max-height:none; height:100%; }
+.grid2 > div { display:contents; }
+.grid2 #holPanel { margin-top:0; }
+.grid2 > div > .panel { margin:0; }
+@container col (max-width: 780px) { .today-top .stats { grid-template-rows:none; } .today-top .stats .weekcard .skybox svg { max-height:190px; height:auto; } }
+.grid2 { align-items:stretch; }
+.grid2 { grid-template-columns:1fr 1fr; gap:20px; }
