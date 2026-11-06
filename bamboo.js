@@ -30,9 +30,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---- what is already in VibeTime for a day, and what the import would change
   const mins = h => Math.round((h || 0) * 60);
+  // Worked time for a day. BambooHR's day total can include time off (a PTO day shows the PTO hours as its total), so:
+  // use the clock entries when there are any; a day with time off and no clock entries had no work; otherwise the total.
+  function workedFor(d) {
+    const closed = d.entries.filter(e => e.end !== null);
+    if (closed.length) return closed.reduce((s, e) => s + Math.max(0, toMin(e.end) - toMin(e.start)), 0) / 60;
+    if (d.timeOff.length) return 0;
+    return d.worked;
+  }
   function plan(day) {
     const cur = state.days[day.date] || {}, next = { ...cur }, notes = [];
-    if (day.worked != null && day.worked > 0) next.w = day.worked;
+    const w = workedFor(day);
+    if (w != null) { if (w > 0) next.w = w; else if (day.timeOff.length || day.entries.length) delete next.w; }   // BambooHR says nothing was worked
     for (const t of day.timeOff) if (t.kind !== 'holiday' && t.hours > 0) next[t.kind] = t.hours;   // holidays come from your country setting
     for (const k of ['w', 'pto', 'sick']) if (!(next[k] > 0)) delete next[k];
     const changed = ['w', 'pto', 'sick'].some(k => mins(next[k]) !== mins(cur[k]));
@@ -156,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       msg = `Punch-in ${clockLabel(open ? open.start : sorted[0].start)} read from BambooHR. Your timer is running from then.`;
     } else {
-      const total = p.worked != null ? p.worked : doneH;
+      const total = (closed.length && !open) ? doneH : (p.worked != null ? p.worked : doneH);   // the clock entries, not a total that may include time off
       state.days[p.date] = { ...cur, w: total }; changed = true;
       try { localStorage.removeItem('vibetime.timer'); localStorage.setItem('vibetime.punched', p.date); } catch {}
       msg = `Punched out: ${fh(total, false)} logged for today from BambooHR.`;
@@ -178,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const list = $('blist'); list.innerHTML = '';
     rows.length = 0;
     const todayK = fmt(new Date());
-    const past = data.days.filter(d => !d.today && d.date !== todayK && (d.worked > 0 || d.timeOff.some(t => t.kind !== 'holiday')));
+    const past = data.days.filter(d => !d.today && d.date !== todayK && (workedFor(d) > 0 || d.timeOff.some(t => t.kind !== 'holiday')));
     for (const d of past) {
       const p = plan(d);
       const li = document.createElement('li');
@@ -190,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const now = document.createElement('span'); now.className = 'bnow';
       now.textContent = !p.changed ? 'already the same' : p.replaces ? `replaces ${part(p.cur)}` : 'new';
       li.append(label, will, now);
-      if (!isWorkday(parseDate(d.date)) && d.worked > 0) { const w = document.createElement('em'); w.className = 'muted'; w.textContent = 'not one of your working days'; li.append(w); }
+      if (!isWorkday(parseDate(d.date)) && workedFor(d) > 0) { const w = document.createElement('em'); w.className = 'muted'; w.textContent = 'not one of your working days'; li.append(w); }
       list.append(li);
       rows.push({ d, p, cb });
     }

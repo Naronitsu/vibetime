@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Calendar · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=1917d21c">
+<link rel="stylesheet" href="style.css?v=05f6781c">
 <script src="holidays.js?v=270cf135"></script>
 <script src="app.js?v=9127b11f"></script>
 <script src="sync.js?v=13341324"></script>
@@ -52,6 +52,12 @@
     </div>
   </form>
 </dialog>
+
+<aside class="misspop" id="misspop" role="status" hidden>
+  <b id="missTitle"></b>
+  <p id="missText"></p>
+  <div class="row"><button class="btn sm primary" type="button" id="missok">Got it</button></div>
+</aside>
 
 <script>
 renderNav('calendar.html');
@@ -120,7 +126,35 @@ function renderCal(dir = 0) {
   renderCal.first = false;
   cal.innerHTML = html;
 }
-const render = dir => { renderSummary(); renderCal(dir); };
+// A past month with working days that have nothing logged: suggest importing that month from BambooHR.
+const missKey = ym => `vibetime.missnote.${ym}`;
+function missingInMonth(y, m) {
+  const todayS = fmt(new Date()), start = state.settings.start;
+  let n = 0;
+  for (let d = new Date(y, m, 1); d.getMonth() === m; d.setDate(d.getDate() + 1)) {
+    const k = fmt(d);
+    if (k >= todayS || k < start) continue;
+    if (isWorkday(d) && !holidayName(d) && !state.days[k]) n++;
+  }
+  return n;
+}
+function renderMissPop() {
+  const box = $('misspop'), y = view.getFullYear(), m = view.getMonth(), ym = `${y}-${pad(m + 1)}`;
+  const now = new Date(), past = y < now.getFullYear() || (y === now.getFullYear() && m < now.getMonth());
+  const n = past ? missingInMonth(y, m) : 0;
+  let dismissed = false; try { dismissed = !!localStorage.getItem(missKey(ym)); } catch {}
+  if (!n || dismissed) { box.hidden = true; return; }
+  const month = view.toLocaleString('en', { month: 'long' }), installed = !!document.documentElement.dataset.vibetimeBamboohr;
+  $('missTitle').textContent = `${n} day${n === 1 ? '' : 's'} in ${month} ${n === 1 ? 'has' : 'have'} nothing logged`;
+  $('missText').innerHTML = installed
+    ? 'Open BambooHR, load that pay period&rsquo;s <b>Timesheet</b>, and press <b>Send to VibeTime</b> to import them.'
+    : 'Install the BambooHR extension from <a href="settings.html">Settings</a>, then open that pay period&rsquo;s <b>Timesheet</b> in BambooHR and press <b>Send to VibeTime</b> to import them.';
+  box.dataset.ym = ym; box.hidden = false;
+  box.classList.remove('in'); void box.offsetWidth; box.classList.add('in');       // replay the pop
+}
+$('missok').onclick = () => { const ym = $('misspop').dataset.ym; try { localStorage.setItem(missKey(ym), '1'); } catch {} $('misspop').hidden = true; };
+window.addEventListener('message', ev => { if (ev.source === window && ev.data && ev.data.vibetimeExt) renderMissPop(); });
+const render = dir => { renderSummary(); renderCal(dir); renderMissPop(); };
 
 // ---- day editor
 const dlg = $('dlg'), FIELD = { w: 'fw', pto: 'fp', sick: 'fs' };
