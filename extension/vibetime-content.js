@@ -4,6 +4,10 @@
 //   (any time)    a clock change for a VibeTime Today page that is already open arrives as a message
 (function () {
   const api = typeof browser !== 'undefined' ? browser : chrome;
+  // let the page know the extension is installed (Settings shows "Installed" instead of an install button)
+  const version = api.runtime.getManifest().version;
+  document.documentElement.dataset.vibetimeBamboohr = version;
+  window.postMessage({ vibetimeExt: version }, location.origin);
   const send = payload => window.postMessage({ vibetimeBamboo: payload }, location.origin);
   const sendAuto = payload => window.postMessage({ vibetimeBambooAuto: payload }, location.origin);
 

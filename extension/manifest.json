@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VibeTime for BambooHR",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Reads the BambooHR timesheet and clock you are looking at and sends them to VibeTime: when you click the button, and when you punch in or out. Runs only on BambooHR and VibeTime pages; nothing is sent anywhere else.",
   "browser_specific_settings": {
     "gecko": {

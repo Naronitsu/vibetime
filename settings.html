@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Settings · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=11f39562">
+<link rel="stylesheet" href="style.css?v=e3c44eef">
 <script src="holidays.js?v=270cf135"></script>
 <script src="app.js?v=9127b11f"></script>
 <script src="sync.js?v=13341324"></script>
@@ -53,6 +53,7 @@
     <h2>BambooHR</h2>
     <div class="fields">
       <label class="field"><span class="t"><b>Follow my BambooHR clock</b><span>With the VibeTime for BambooHR extension, your punch-in starts the timer and fills in the leave planner, and your punch-out logs the day. Every change has an Undo.</span></span><select class="inp" id="sBambooAuto"><option value="1">Yes</option><option value="0">No</option></select></label>
+      <div class="field"><span class="t"><b>Browser extension</b><span id="extState"></span></span><a class="btn primary" id="extInstall" href="#">Install for Firefox</a></div>
     </div>
   </section>
 
@@ -119,6 +120,19 @@ for (const id in sMap) document.getElementById(id).addEventListener('change', e 
 });
 document.getElementById('sBambooAuto').value = state.settings.bambooAuto === false ? '0' : '1';
 document.getElementById('sBambooAuto').addEventListener('change', e => { state.settings.bambooAuto = e.target.value === '1'; save(); });
+// ---- the BambooHR extension: install button, or "Installed" once the extension has announced itself
+const EXT_URL = 'https://github.com/Naronitsu/vibetime/raw/main/extension/releases/vibetime-bamboohr-1.1.1.xpi';   // replace with the addons.mozilla.org file link for one-click install
+function renderExt() {
+  const ver = document.documentElement.dataset.vibetimeBamboohr, firefox = /Firefox\//.test(navigator.userAgent);
+  const btn = document.getElementById('extInstall'), st = document.getElementById('extState');
+  if (ver) { st.textContent = `Installed (version ${ver}). Open your BambooHR timesheet or home page and the Send to VibeTime button appears.`; btn.hidden = true; return; }
+  btn.hidden = !firefox; btn.href = EXT_URL;
+  st.textContent = firefox
+    ? 'Reads your BambooHR timesheet, balances and clock and sends them here. Firefox will ask you to confirm. If it only downloads the file, open about:addons, click the gear icon and choose Install Add-on From File.'
+    : 'The extension is for Firefox. Open VibeTime in Firefox to install it.';
+}
+window.addEventListener('message', ev => { if (ev.source === window && ev.data && ev.data.vibetimeExt) renderExt(); });
+renderExt();
 loadSettings();
 
 const countrySel = document.getElementById('sCountry'), regionSel = document.getElementById('sRegion'), YEAR = new Date().getFullYear();
