@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today · VibeTime</title>
-<link rel="stylesheet" href="style.css?v=e3c44eef">
+<link rel="stylesheet" href="style.css?v=1917d21c">
 <script src="holidays.js?v=270cf135"></script>
 <script src="app.js?v=9127b11f"></script>
 <script src="sync.js?v=13341324"></script>
 <script src="timer.js?v=f0563fcf"></script>
-<script src="camp.js?v=02b38515"></script>
-<script src="bamboo.js?v=abe80085"></script>
+<script src="camp.js?v=81138d4b"></script>
+<script src="fx.js?v=9d351bed"></script>
+<script src="bamboo.js?v=0754e6b9"></script>
 <script src="tour.js?v=c8bec657"></script>
 <script src="sky.js?v=f93de382"></script>
 </head>
@@ -31,6 +32,7 @@
     <svg class="scene" id="scene" data-wx="clear" viewBox="0 0 520 240" role="img" aria-label="Your progress through the quarter, climbing toward its last day">
       <g class="sungrp"><circle class="rays" cx="62" cy="42" r="28" fill="none" stroke-dasharray="3 8"/><circle class="sun stroke" cx="62" cy="42" r="19"/></g>
       <g class="cloud a"><ellipse cx="190" cy="62" rx="26" ry="11"/><ellipse cx="208" cy="55" rx="17" ry="12"/><ellipse cx="174" cy="57" rx="14" ry="9"/></g>
+      <path class="shoot" d="M0 0 L-30 13"/>
       <g class="cloud b"><ellipse cx="450" cy="92" rx="20" ry="8"/><ellipse cx="462" cy="86" rx="12" ry="9"/></g>
       <g class="stormclouds">
         <ellipse cx="70" cy="36" rx="58" ry="20"/><ellipse cx="120" cy="50" rx="44" ry="18"/><ellipse cx="30" cy="54" rx="34" ry="16"/>
@@ -227,7 +229,7 @@ function renderStats() {
   $('stats').innerHTML = `
     <div class="panel stat">
       <div class="k">Balance</div>
-      <div class="v huge ${cls(s.bal)}">${fhUnits(s.bal)}</div>
+      <div class="v huge ${cls(s.bal)}" id="cuBal">${fhUnits(s.bal)}</div>
       <div class="s">${s.today.toLocaleString('en', { month: 'long' })} so far: <b class="tab">${fh(s.mDelta)}</b></div>
       <div class="split bsplit">
         <span><b class="tab" id="bToday"></b>Today</span>
@@ -247,6 +249,7 @@ function renderStats() {
     </div>${weekCard()}`;
   $('bWeek').innerHTML = `${fh(wk.total, false)}<span class="of"> / ${fh(wk.expected, false)}</span>`;
   updateToday();
+  FX.countUp($('cuBal'), s.bal, v => fhUnits(v), 'bal');
   renderCamp();
 }
 
@@ -401,7 +404,7 @@ function renderLeaves() {
         <defs><clipPath id="clip-${t}"><path d="${BOTTLE}"/></clipPath></defs>
         <g clip-path="url(#clip-${t})">
           <rect class="glass" x="0" y="0" width="80" height="110"/>
-          <g class="level" style="transform:translateY(${lvl}px)"><path class="liq wave" d="${WAVE}"/></g>
+          <g class="level" style="transform:translateY(${lvl}px)"><path class="liq wave" d="${WAVE}"/><g class="bubs"><circle class="bub b1" cx="26" cy="100" r="2.4"/><circle class="bub b2" cx="40" cy="104" r="1.8"/><circle class="bub b3" cx="52" cy="102" r="2.1"/></g></g>
         </g>
         <path class="shine" d="M21 68 V88"/>
         <path class="outline" d="${BOTTLE}"/>
@@ -409,13 +412,14 @@ function renderLeaves() {
       </svg>
       <div class="body">
         <div class="k">${name} · ${y}</div>
-        <div class="v ${x.remaining < 0 ? 'neg' : ''}">${fhUnits(set ? x.remaining : x.booked, false)} <small>${set ? 'left' : 'booked'}</small></div>
+        <div class="v ${x.remaining < 0 ? 'neg' : ''}" id="cu-${t}" data-suffix="${set ? 'left' : 'booked'}">${fhUnits(set ? x.remaining : x.booked, false)} <small>${set ? 'left' : 'booked'}</small></div>
         <div class="split tab"><span><b>${fh(x.total, false)}</b>total</span><span><b>${fh(x.booked, false)}</b>booked</span><span><b>${fh(x.remaining, false)}</b>left</span></div>
         <div class="s">${fh(x.taken, false)} taken, ${fh(x.upcoming, false)} upcoming${set ? '' : ' · <a href="settings.html">set your allowance</a>'}</div>
         <div class="manage">Book or review dates &rarr;</div>
       </div>
     </div>`;
   }).join('');
+  for (const t of ['pto', 'sick']) { const el = $('cu-' + t), x = L[t], set = x.total > 0; if (el) FX.countUp(el, set ? x.remaining : x.booked, v => fhUnits(v, false) + ' <small>' + el.dataset.suffix + '</small>', 'cu-' + t); }
 }
 function renderHolidays() {
   if (!state.settings.country) {
@@ -447,7 +451,7 @@ $('save').onclick = () => {
   const v = readFields();
   if (Object.values(v).some(Number.isNaN)) return;
   setEntry(dateEl.value, v);
-  renderStats(); renderLeaves(); renderMissing(); flash('Saved'); showManual(false);
+  renderStats(); renderLeaves(); renderMissing(); flash('Saved'); showManual(false); celebrateDay();
 };
 $('clear').onclick = () => { setEntry(dateEl.value, {}); refresh(); flash('Cleared'); showManual(false); };
 
@@ -464,6 +468,16 @@ $('missing').onclick = ev => {
 // ---- timer UI (the timer itself lives in timer.js, and the camp scene in camp.js, so other pages can use them too)
 let timerNote = '';
 const camp = mountCamp($('camp'), { caption: true });
+$('camp').style.cursor = 'pointer'; $('camp').title = 'Poke the hiker';
+$('camp').addEventListener('click', ev => { if (!ev.target.closest('.campcap')) camp.hop(); });
+// stars and a hop when today reaches its target
+function celebrateDay() {
+  const d = startOfToday(), e = state.days[fmt(d)], exp = expectedFor(d);
+  if (!e || !(exp > 0) || creditedFor(e, d) < exp - 0.25) return;
+  const r = $('camp').getBoundingClientRect();
+  if (r.bottom < 0 || r.top > innerHeight) return;                // only celebrate where you can see it
+  FX.burst($('camp'), 18); camp.hop();
+}
 const renderCamp = (light = false) => camp.update(light);
 function renderTimer() {
   renderCamp();
@@ -487,7 +501,7 @@ $('timer').onclick = ev => {
   if (r.cancelled) return;
   timerNote = r.note;
   if (r.note) setTimeout(() => { timerNote = ''; renderTimer(); }, 4000);
-  if (r.logged) { dateEl.value = fmt(new Date()); refresh(); flash(`Logged ${fh(r.logged, false)} from the timer`); }
+  if (r.logged) { dateEl.value = fmt(new Date()); refresh(); flash(`Logged ${fh(r.logged, false)} from the timer`); celebrateDay(); }
   renderTimer();
 };
 // ---- punch-in planner: your punch-in and breaks in, your leave times out
@@ -628,6 +642,7 @@ function logSoFar(keepGoing) {
   if (keepGoing) writeTimer({ mode: 'run', since: pl.now, acc: 0 });
   refresh(); renderTimer(); renderPlan();
   flash(keepGoing ? `Logged ${fh(add, false)} and the timer is running` : `Logged ${fh(add, false)} for today`);
+  celebrateDay();
 }
 $('planLog').onclick = () => logSoFar(false);
 $('planLogGo').onclick = () => logSoFar(true);

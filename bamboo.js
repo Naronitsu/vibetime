@@ -168,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof renderBreaks === 'function' && $('punchIn')) { try { const pl = JSON.parse(localStorage.getItem('vibetime.punchin')); if (pl) $('punchIn').value = pl.time; $('breaks').innerHTML = ''; renderBreaks(); renderPlan(); } catch {} }
     }
     toast(msg, undoLast);
+    if (p.kind === 'out' && typeof celebrateDay === 'function') celebrateDay();
     finishAuto();
   }
 

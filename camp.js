@@ -73,8 +73,8 @@ function mountCamp(camp, { caption = false } = {}) {
     if (capTitle) { capTitle.textContent = CAMP_TEXT[s][0]; capSub.textContent = t ? clock(timerMs(t)) : CAMP_TEXT[s][1]; }
   }
   update();
-  startHiker(camp);
-  return { update, el: camp };
+  const hop = startHiker(camp);
+  return { update, hop, el: camp };
 }
 
 // ---- the hiker's skeleton: every pose is a handful of angles that ease toward the current state's pose,
@@ -92,7 +92,7 @@ function startHiker(camp) {
   const cur = { ...POSE.view, sx: 1, move: 0, phase: 0, scroll: 0, vx: 0, w: { view: 1, hike: 0, break: 0, rest: 0 } };
   const lerp = (a, b, k) => a + (b - a) * k, ease = (dt, k) => 1 - Math.exp(-k * dt), sm = x => x * x * (3 - 2 * x);
   const STRIDE = 0.9, SPEED = 21;                       // seconds per full step cycle; scenery units per second
-  let t = 0, blinkAt = 2.5, last = 0, raf = 0;
+  let t = 0, blinkAt = 2.5, last = 0, raf = 0, hopT = 0;     // hopT: seconds into a hop (0 = not hopping)
 
   function step(dt) {
     t += dt;
@@ -125,14 +125,17 @@ function startHiker(camp) {
     const breath = 1 + 0.022 * Math.sin(t * 2 * (1 + cur.w.rest * -.4));
     let eye = 1;
     if (t >= blinkAt) { const b = (t - blinkAt) / .14; if (b < 1) eye = 1 - .9 * Math.sin(b * Math.PI); else blinkAt = t + 2.5 + Math.random() * 3.5; }
+    // a hop: up and down in 0.7s with both arms thrown up (only while standing or hiking)
+    let lift = 0, cheer = 0;
+    if (hopT > 0) { hopT += dt; const k = hopT / 0.7; if (k >= 1 || st === 'rest' || st === 'break') hopT = 0; else { lift = 4 * k * (1 - k) * 20; cheer = Math.sin(k * Math.PI); } }
     const f = n => n.toFixed(2);
-    el.chr.setAttribute('transform', `translate(${f(cur.x)} ${f(cur.y)}) rotate(${f(cur.r)}) scale(${f(cur.sx)} 1)`);
+    el.chr.setAttribute('transform', `translate(${f(cur.x)} ${f(cur.y - lift)}) rotate(${f(cur.r)}) scale(${f(cur.sx)} 1)`);
     el.lb.setAttribute('transform', `rotate(${f(cur.lb + 28 * sw)} -3.5 -9)`);
     el.lf.setAttribute('transform', `rotate(${f(cur.lf - 28 * sw)} 3.5 -9)`);
     el.torso.setAttribute('transform', `translate(0 ${f(-bob)}) rotate(${f(cur.lean)} 0 -9) translate(0 -9) scale(1 ${f(breath)}) translate(0 9)`);
     el.head.setAttribute('transform', `rotate(${f(head)} 0 -30)`);
-    el.af.setAttribute('transform', `rotate(${f(af)} 3 -25)`);
-    el.ab.setAttribute('transform', `rotate(${f(ab)} -5 -24)`);
+    el.af.setAttribute('transform', `rotate(${f(af - cheer * (140 + af))} 3 -25)`);
+    el.ab.setAttribute('transform', `rotate(${f(ab + cheer * (160 - ab))} -5 -24)`);
     el.eye.setAttribute('transform', `translate(4 -40) scale(1 ${f(eye)}) translate(-4 40)`);
   }
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -152,4 +155,5 @@ function startHiker(camp) {
     for (let i = 0; i < 40; i++) step(.1);             // start from the right pose, not from a jump
     run();
   }
+  return () => { if (!hopT && !still) hopT = 0.0001; };
 }
