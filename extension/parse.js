@@ -65,5 +65,51 @@
     return { period, days };
   }
 
-  root.VibeParse = { parseTimesheet, parseDuration, parseClock, resolveDate, parseTimeOff };
+  // BambooHR puts some of its data in the page as "window.<name> = {...}". Returns that object, or null.
+  function inlineJson(doc, name) {
+    for (const sc of doc.querySelectorAll('script:not([src])')) {
+      const t = sc.textContent, at = t.indexOf('window.' + name);
+      if (at < 0) continue;
+      const start = t.indexOf('{', at); if (start < 0) continue;
+      let depth = 0, inStr = false, esc = false, end = -1;
+      for (let i = start; i < t.length; i++) {                       // find the matching closing brace
+        const c = t[i];
+        if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; continue; }
+        if (c === '"') inStr = true; else if (c === '{') depth++; else if (c === '}' && --depth === 0) { end = i + 1; break; }
+      }
+      if (end < 0) continue;
+      try { return JSON.parse(t.slice(start, end)); } catch { /* try the next script */ }
+    }
+    return null;
+  }
+
+  // The home page carries each time-off type's balance. Returns [ { name, unit, available, scheduled, usedYtd } ]
+  // for the types that have a balance (not unlimited ones).
+  function parseBalances(doc) {
+    const obj = inlineJson(doc, 'time_off');
+    if (!obj) return [];
+    const num = x => (x === null || x === undefined || x === '' || isNaN(Number(x))) ? null : Number(x);
+    return (Array.isArray(obj.types) ? obj.types : []).filter(x => x && typeof x.name === 'string' && num(x.unitsAvailable) !== null)
+      .slice(0, 20).map(x => ({ name: x.name.slice(0, 60), unit: x.unit === 'days' ? 'days' : 'hours', available: num(x.unitsAvailable), scheduled: num(x.unitsScheduled) || 0, usedYtd: num(x.usedYtd) || 0 }));
+  }
+
+  // The home page also carries today's clock entries as they were when the page loaded:
+  // { date: 'YYYY-MM-DD', entries: [ { start: 'HH:MM', end: 'HH:MM' | null } ] }  (end null = still clocked in)
+  function parseClockData(doc) {
+    const obj = inlineJson(doc, 'time_tracking');
+    if (!obj || !Array.isArray(obj.clockEntries)) return null;
+    const hm = v => { const m = String(v || '').match(/(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/); return m ? { d: m[1], t: m[2] + ':' + m[3] } : null; };
+    const entries = [];
+    let date = null;
+    for (const e of obj.clockEntries.slice(0, 40)) {
+      const st = hm(e && e.start), en = hm(e && e.end);
+      if (!st) continue;
+      date = date || st.d;
+      entries.push({ start: st.t, end: en ? en.t : null });
+    }
+    const td = hm(obj.today && obj.today.date);
+    return { date: (td && td.d) || date, entries };
+  }
+
+  root.VibeParse = { parseTimesheet, parseBalances, parseClockData, inlineJson, parseDuration, parseClock, resolveDate, parseTimeOff };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

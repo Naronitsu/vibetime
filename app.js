@@ -9,7 +9,7 @@ const startOfToday = () => { const d = new Date(); d.setHours(0,0,0,0); return d
 function defaults() {
   const now = new Date();
   return {
-    settings: { target: 8, workDays: [1, 2, 3, 4, 5], country: '', region: '', ptoTotal: 0, sickTotal: 0, limitMax: 4, limitMin: 4, quarterTarget: 0, theme: 'dark',
+    settings: { target: 8, workDays: [1, 2, 3, 4, 5], country: '', region: '', ptoTotal: 0, sickTotal: 0, bambooAuto: true, limitMax: 4, limitMin: 4, quarterTarget: 0, theme: 'dark',
                 start: fmt(new Date(now.getFullYear(), now.getMonth(), 1)), opening: 0 },
     days: {},
     mod: {}, settingsMod: 0,           // when each day / the settings last changed (used to merge devices)
@@ -36,6 +36,7 @@ const SETTING_RULES = {
   start: v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v),
   workDays: v => Array.isArray(v) && v.every(n => Number.isInteger(n) && n >= 0 && n <= 6),
   country: v => typeof v === 'string', region: v => typeof v === 'string',
+  bambooAuto: v => typeof v === 'boolean',
   theme: v => v === 'dark' || v === 'light',
 };
 const MIGRATIONS = {

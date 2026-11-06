@@ -786,3 +786,17 @@ body.bare { display:block; }
 #blist li { display:grid; grid-template-columns:1fr auto; gap:2px 12px; align-items:baseline; }
 #blist .bnow { grid-column:1 / -1; color:var(--muted); font-size:13px; font-weight:700; padding-left:28px; }
 #blist li em { grid-column:1 / -1; padding-left:28px; font-size:13px; }
+
+/* import: time-off balances */
+#bbal { margin-bottom:12px; }
+#bbal h3 { font-family:var(--display); font-weight:400; font-size:18px; margin:0 0 8px; }
+#bbal .bnetrow { align-items:flex-start; font-weight:700; font-size:14px; color:var(--muted); margin-bottom:8px; }
+#bbal ul li.bbalrow { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; align-items:center; }
+#bbal ul li.bbalrow .d { min-width:0; }
+#bbal ul li.bbalrow select.inp { width:130px; padding:5px 8px; }
+#bbal ul li.bbalrow .bnow { grid-column:1 / -1; color:var(--muted); font-size:13px; font-weight:700; }
+
+/* BambooHR auto-import toast */
+#btoast { position:fixed; left:50%; bottom:24px; transform:translate(-50%, 20px); opacity:0; pointer-events:none; z-index:2000; max-width:min(520px, calc(100vw - 24px)); display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--surface); color:var(--ink); border:3px solid var(--line); border-radius:14px; box-shadow:4px 4px 0 var(--shadow); font-weight:700; transition:opacity .25s, transform .25s; }
+#btoast.on { opacity:1; transform:translate(-50%, 0); pointer-events:auto; }
+@media (max-width:700px) { #btoast { bottom:92px; } }

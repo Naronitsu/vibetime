@@ -4,7 +4,10 @@ Reads the timesheet you are looking at on BambooHR and sends it to VibeTime, whe
 
 ## What it does and does not do
 - Runs only on `*.bamboohr.com` / `*.bamboohr.co.uk` pages and on `naronitsu.github.io/vibetime`.
-- A small **Send to VibeTime** button appears on the Timesheet tab. The page is only read when you click it.
+- A small **Send to VibeTime** button appears on the Timesheet tab and on the Home page. The page is only read when you click it.
+- On the **Timesheet** tab it reads the days (clock-in/out times, day totals, booked time off). On the **Home** page it reads your time-off balances (available, scheduled, used this year) so VibeTime's PTO and sick allowances can match BambooHR.
+- **Your clock:** while a BambooHR page is open, it notices when you clock in or out (the "My Time" widget on Home, or today's row on the Timesheet tab) and tells VibeTime. Punch-in: your punch-in time and breaks go into the leave planner and the VibeTime timer starts from your punch time. Punch-out: today's hours are set to BambooHR's total and the timer stops. VibeTime shows a toast with **Undo**, and Settings -> *Follow my BambooHR clock* turns it off. If no VibeTime tab is open, one opens in the background and closes itself again.
+- It cannot see punches made elsewhere (phone app, another computer) until you open a BambooHR page, and then only the Send button picks them up.
 - It reads the days, clock-in/out times, day totals and time-off rows. It never touches your password, cookies or API keys, and makes no network requests of its own.
 - The days are handed to a new VibeTime tab through the browser itself (kept for at most 10 minutes, then deleted). Nothing is saved in VibeTime until you press **Import**, and Settings → Undo brings back what you had.
 
