@@ -16,7 +16,7 @@ Reads the timesheet you are looking at on BambooHR and sends it to VibeTime, whe
 1. Download it from GitHub: open the file in the repo and press **Download raw file** (or use https://github.com/Naronitsu/vibetime/raw/main/extension/releases/vibetime-bamboohr-1.1.1.xpi).
 2. In Firefox open `about:addons`, click the gear icon, choose **Install Add-on From File…** and pick the downloaded `.xpi`.
 
-A new version of the extension code needs a new signed file (bump `version` in `manifest.json`, zip the extension files, upload the zip at https://addons.mozilla.org/developers/ as an unlisted version, download the signed `.xpi` into `extension/releases/`). Changes to the VibeTime website itself never need re-signing.
+A new version of the extension code needs a new signed file (bump `version` in `manifest.json`, zip the extension files, upload the zip at https://addons.mozilla.org/developers/ as an unlisted version, download the signed `.xpi` into `extension/releases/`, and put its file name in `extension/releases/latest.txt`; the Worker's `/vibetime.xpi` link then serves it). Changes to the VibeTime website itself never need re-signing.
 
 ## Install (temporary, until Firefox closes)
 1. In Firefox open `about:debugging#/runtime/this-firefox`.

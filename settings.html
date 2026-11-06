@@ -121,14 +121,19 @@ for (const id in sMap) document.getElementById(id).addEventListener('change', e 
 document.getElementById('sBambooAuto').value = state.settings.bambooAuto === false ? '0' : '1';
 document.getElementById('sBambooAuto').addEventListener('change', e => { state.settings.bambooAuto = e.target.value === '1'; save(); });
 // ---- the BambooHR extension: install button, or "Installed" once the extension has announced itself
-const EXT_URL = 'https://github.com/Naronitsu/vibetime/raw/main/extension/releases/vibetime-bamboohr-1.1.1.xpi';   // replace with the addons.mozilla.org file link for one-click install
+const EXT_FILE = 'https://github.com/Naronitsu/vibetime/raw/main/extension/releases/vibetime-bamboohr-1.1.1.xpi';   // plain download (works anywhere)
+const EXT_ONE_CLICK = (typeof AUTH_WORKER === 'string' && AUTH_WORKER ? AUTH_WORKER.replace(/\/+$/, '') : '') + '/vibetime.xpi';   // Firefox offers to install straight away
+let extUrl = EXT_FILE, extOneClick = false;
+if (typeof AUTH_WORKER === 'string' && AUTH_WORKER) fetch(EXT_ONE_CLICK, { method: 'HEAD' }).then(r => {
+  if (r.ok && /x-xpinstall/.test(r.headers.get('content-type') || '')) { extUrl = EXT_ONE_CLICK; extOneClick = true; renderExt(); }
+}).catch(() => {});
 function renderExt() {
   const ver = document.documentElement.dataset.vibetimeBamboohr, firefox = /Firefox\//.test(navigator.userAgent);
   const btn = document.getElementById('extInstall'), st = document.getElementById('extState');
   if (ver) { st.textContent = `Installed (version ${ver}). Open your BambooHR timesheet or home page and the Send to VibeTime button appears.`; btn.hidden = true; return; }
-  btn.hidden = !firefox; btn.href = EXT_URL;
+  btn.hidden = !firefox; btn.href = extUrl;
   st.textContent = firefox
-    ? 'Reads your BambooHR timesheet, balances and clock and sends them here. Firefox will ask you to confirm. If it only downloads the file, open about:addons, click the gear icon and choose Install Add-on From File.'
+    ? 'Reads your BambooHR timesheet, balances and clock and sends them here. Firefox will ask you to confirm.' + (extOneClick ? '' : ' If it only downloads the file, open about:addons, click the gear icon and choose Install Add-on From File.')
     : 'The extension is for Firefox. Open VibeTime in Firefox to install it.';
 }
 window.addEventListener('message', ev => { if (ev.source === window && ev.data && ev.data.vibetimeExt) renderExt(); });
