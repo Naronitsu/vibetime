@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Invented timesheet used to test the extension (not real data)</title>
+<!-- Same class names and text formats as the BambooHR Timesheet tab. Every time and total below is invented. -->
+<div id="js-timesheet"><div class="TimesheetTab"><div class="TimesheetHeader"><span class="TimesheetHeader__period">Nov 1&ndash;30</span></div>
+
+<!-- three entries: two gaps (breaks) -->
+<div class="TimesheetSlat TimesheetSlat--clock TimesheetSlat--disabled TimesheetSlat--expandable"><div><div class="TimesheetSlat__day"><div class="TimesheetSlat__dayOfWeek">Mon</div><div class="TimesheetSlat__dayDate">Oct 26</div></div><div class="TimesheetSlat__dataWrapper"><div class="TimesheetSlat__data"><div class="TimesheetSlat__multipleContent"><h4 class="TimesheetSlat__dayTotal">7h 30m</h4><div class="TimesheetSlat__firstAndLast">8:40 AM - 5:10 PM<span class="TimesheetSlat__entriesCount"> (3 Entries)</span></div>
+<div class="TimeEntry TimeEntry--viewable"><span class="TimeEntry__start">8:40 AM</span><span>-</span><span class="TimeEntry__end">9:05 AM</span><span>&middot;</span><span class="TimeEntry__total">0h 25m</span></div>
+<div class="TimeEntry TimeEntry--viewable"><span class="TimeEntry__start">9:30 AM</span><span>-</span><span class="TimeEntry__end">12:45 PM</span><span>&middot;</span><span class="TimeEntry__total">3h 15m</span></div>
+<div class="TimeEntry TimeEntry--viewable"><span class="TimeEntry__start">1:20 PM</span><span>-</span><span class="TimeEntry__end">5:10 PM</span><span>&middot;</span><span class="TimeEntry__total">3h 50m</span></div>
+</div></div></div></div></div>
+
+<div class="TimesheetSlat TimesheetSlat--clock TimesheetSlat--disabled TimesheetSlat--expandable"><div><div class="TimesheetSlat__day"><div class="TimesheetSlat__dayOfWeek">Tue</div><div class="TimesheetSlat__dayDate">Oct 27</div></div><div class="TimesheetSlat__dataWrapper"><div class="TimesheetSlat__data"><div class="TimesheetSlat__multipleContent"><h4 class="TimesheetSlat__dayTotal">7h 40m</h4><div class="TimesheetSlat__firstAndLast">9:10 AM - 5:30 PM<span class="TimesheetSlat__entriesCount"> (2 Entries)</span></div>
+<div class="TimeEntry TimeEntry--viewable"><span class="TimeEntry__start">9:10 AM</span><span>-</span><span class="TimeEntry__end">12:20 PM</span><span>&middot;</span><span class="TimeEntry__total">3h 10m</span></div>
+<div class="TimeEntry TimeEntry--viewable"><span class="TimeEntry__start">1:00 PM</span><span>-</span><span class="TimeEntry__end">5:30 PM</span><span>&middot;</span><span class="TimeEntry__total">4h 30m</span></div>
+</div></div></div></div></div>
+
+<!-- a weekend day with nothing on it -->
+<div class="TimesheetSlat TimesheetSlat--clock TimesheetSlat--disabled TimesheetSlat--hide"><div><div class="TimesheetSlat__day"><div class="TimesheetSlat__dayOfWeek">Sat</div><div class="TimesheetSlat__dayDate">Oct 31</div></div><div class="TimesheetSlat__dataWrapper"><div class="TimesheetSlat__data"><div class="TimesheetSlat__multipleContent"><h4 class="TimesheetSlat__dayTotal">0h 00m</h4></div></div></div></div></div>
+
+<div class="TimesheetSlat TimesheetSlat--clock TimesheetSlat--expandable"><div><div class="TimesheetSlat__day"><div class="TimesheetSlat__dayOfWeek">Mon</div><div class="TimesheetSlat__dayDate">Nov 2</div></div><div class="TimesheetSlat__dataWrapper"><div class="TimesheetSlat__data"><div class="TimesheetSlat__multipleContent"><h4 class="TimesheetSlat__dayTotal">7h 30m</h4><div class="TimesheetSlat__firstAndLast">7:50 AM - 4:00 PM<span class="TimesheetSlat__entriesCount"> (2 Entries)</span></div>
+<div class="TimeEntry TimeEntry--viewable"><span class="TimeEntry__start">7:50 AM</span><span>-</span><span class="TimeEntry__end">11:35 AM</span><span>&middot;</span><span class="TimeEntry__total">3h 45m</span></div>
+<div class="TimeEntry TimeEntry--viewable"><span class="TimeEntry__start">12:15 PM</span><span>-</span><span class="TimeEntry__end">4:00 PM</span><span>&middot;</span><span class="TimeEntry__total">3h 45m</span></div>
+</div></div></div></div></div>
+
+<!-- a zero-length entry, as BambooHR sometimes shows -->
+<div class="TimesheetSlat TimesheetSlat--clock TimesheetSlat--expandable"><div><div class="TimesheetSlat__day"><div class="TimesheetSlat__dayOfWeek">Tue</div><div class="TimesheetSlat__dayDate">Nov 3</div></div><div class="TimesheetSlat__dataWrapper"><div class="TimesheetSlat__data"><div class="TimesheetSlat__multipleContent"><h4 class="TimesheetSlat__dayTotal">7h 34m</h4><div class="TimesheetSlat__firstAndLast">8:05 AM - 4:20 PM<span class="TimesheetSlat__entriesCount"> (3 Entries)</span></div>
+<div class="TimeEntry TimeEntry--viewable"><span class="TimeEntry__start">8:05 AM</span><span>-</span><span class="TimeEntry__end">8:05 AM</span><span>&middot;</span><span class="TimeEntry__total">0h 00m</span></div>
+<div class="TimeEntry TimeEntry--viewable"><span class="TimeEntry__start">8:06 AM</span><span>-</span><span class="TimeEntry__end">12:10 PM</span><span>&middot;</span><span class="TimeEntry__total">4h 04m</span></div>
+<div class="TimeEntry TimeEntry--viewable"><span class="TimeEntry__start">12:50 PM</span><span>-</span><span class="TimeEntry__end">4:20 PM</span><span>&middot;</span><span class="TimeEntry__total">3h 30m</span></div>
+</div></div></div></div></div>
+
+<!-- today: still clocked in (the last entry runs to "Now") -->
+<div class="TimesheetSlat TimesheetSlat--clock TimesheetSlat--today TimesheetSlat--futurePadClockedIn"><div><div class="TimesheetSlat__day"><div class="TimesheetSlat__dayOfWeek TimesheetSlat__dayOfWeek--active">Fri</div><div class="TimesheetSlat__dayDate">Nov 6</div></div><div class="TimesheetSlat__dataWrapper"><div class="TimesheetSlat__data"><div class="TimesheetSlat__multipleContent"><h4 class="TimesheetSlat__dayTotal TimesheetSlat__dayTotal--active">2h 35m</h4><div class="TimesheetSlat__firstAndLast">8:35 AM - Now<span class="TimesheetSlat__entriesCount"> (2 Entries)</span></div>
+<div class="TimeEntry TimeEntry--viewable"><span class="TimeEntry__start">8:35 AM</span><span>-</span><span class="TimeEntry__end">9:00 AM</span><span>&middot;</span><span class="TimeEntry__total">0h 25m</span></div>
+<div class="TimeEntry TimeEntry--active TimeEntry--viewable"><span class="TimeEntry__start">9:25 AM</span><span>-</span><span class="TimeEntry__end">Now</span><span>&middot;</span><span class="TimeEntry__total">2h 10m</span></div>
+</div></div></div></div></div>
+
+<!-- future days with booked time off: vacation, sick, then an empty day -->
+<div class="TimesheetSlat TimesheetSlat--clock TimesheetSlat--future"><div><div class="TimesheetSlat__day"><div class="TimesheetSlat__dayOfWeek">Mon</div><div class="TimesheetSlat__dayDate">Nov 23</div></div><div class="TimesheetSlat__dataWrapper"><div class="TimesheetSlat__data"><div class="TimesheetSlat__multipleContent"><div><div><h4 class="TimesheetSlat__dayTotal">0h 00m</h4><div class="TimesheetSlat__contentDivider"></div><div class="TimesheetSlat__extraInfoItem TimesheetSlat__extraInfoItem--clockPush"><p><span></span><span>8 hours Vacation PTO</span></p></div></div></div></div></div></div></div></div>
+<div class="TimesheetSlat TimesheetSlat--clock TimesheetSlat--future"><div><div class="TimesheetSlat__day"><div class="TimesheetSlat__dayOfWeek">Tue</div><div class="TimesheetSlat__dayDate">Nov 24</div></div><div class="TimesheetSlat__dataWrapper"><div class="TimesheetSlat__data"><div class="TimesheetSlat__multipleContent"><div><div><h4 class="TimesheetSlat__dayTotal">0h 00m</h4><div class="TimesheetSlat__extraInfoItem"><p><span>4 hours Sick Leave</span></p></div></div></div></div></div></div></div></div>
+<div class="TimesheetSlat TimesheetSlat--clock TimesheetSlat--future"><div><div class="TimesheetSlat__day"><div class="TimesheetSlat__dayOfWeek">Wed</div><div class="TimesheetSlat__dayDate">Nov 25</div></div><div class="TimesheetSlat__dataWrapper"><div class="TimesheetSlat__data"><div class="TimesheetSlat__multipleContent"><h4 class="TimesheetSlat__dayTotal">0h 00m</h4></div></div></div></div></div>
+
+</div></div>

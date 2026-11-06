@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "VibeTime for BambooHR",
+  "version": "1.0.0",
+  "description": "Reads the BambooHR timesheet you are looking at and sends it to VibeTime when you click the button. Runs only on BambooHR and VibeTime pages; nothing is sent anywhere else.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "vibetime-bamboohr@naronitsu.github.io",
+      "strict_min_version": "115.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  },
+  "permissions": ["storage"],
+  "background": { "scripts": ["background.js"] },
+  "content_scripts": [
+    {
+      "matches": ["https://*.bamboohr.com/*", "https://*.bamboohr.co.uk/*"],
+      "js": ["parse.js", "bamboo-content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://naronitsu.github.io/vibetime/*"],
+      "js": ["vibetime-content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -778,3 +778,11 @@ body.bare { display:block; }
 /* the small note under the big button must not sit on top of it */
 .bigctl { flex-wrap:wrap; }
 .bigctl .tnote { position:static; flex-basis:100%; text-align:center; margin-top:2px; }
+
+/* import from BambooHR */
+.bchk { display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:800; }
+.bchk input { width:18px; height:18px; accent-color:var(--accent); flex:none; }
+.btoday { padding:10px 12px; margin-bottom:10px; background:var(--soft); border:2px solid var(--line); border-radius:12px; align-items:flex-start; }
+#blist li { display:grid; grid-template-columns:1fr auto; gap:2px 12px; align-items:baseline; }
+#blist .bnow { grid-column:1 / -1; color:var(--muted); font-size:13px; font-weight:700; padding-left:28px; }
+#blist li em { grid-column:1 / -1; padding-left:28px; font-size:13px; }
